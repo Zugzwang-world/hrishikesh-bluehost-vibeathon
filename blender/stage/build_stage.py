@@ -78,7 +78,7 @@ def mat(name, color=(0.02, 0.02, 0.02), rough=0.8, metal=0.0, emit=None,
 
 
 def build_materials():
-    mat("stage_deck", (0.010, 0.010, 0.011), rough=0.72)
+    mat("stage_deck", (0.016, 0.016, 0.018), rough=0.72)
     mat("stage_fascia", (0.006, 0.006, 0.007), rough=0.45)
     mat("floor_house", (0.016, 0.016, 0.018), rough=0.92)
     mat("drape", (0.004, 0.004, 0.005), rough=1.0)
@@ -87,6 +87,7 @@ def build_materials():
     mat("led_strip", (0.02, 0.06, 0.15), rough=0.4, emit=(0.10, 0.42, 1.0), strength=3.0)
     mat("center_mark", (0.05, 0.10, 0.20), rough=0.4, emit=(0.35, 0.65, 1.0), strength=2.5)
     mat("turntable", (0.022, 0.022, 0.025), rough=0.35, metal=0.2)
+    mat("turntable_ring", (0.10, 0.12, 0.16), rough=0.4, emit=(0.30, 0.45, 0.75), strength=0.8)
     mat("truss", (0.07, 0.07, 0.075), rough=0.42, metal=0.85)
     mat("fixture_metal", (0.025, 0.025, 0.028), rough=0.35, metal=0.9)
     mat("fixture_lens", (0.6, 0.6, 0.6), rough=0.1, emit=(1.0, 0.95, 0.88), strength=4.0)
@@ -312,7 +313,7 @@ def build_marks():
 
     t = Part("turntable")
     t.disc((0, 0, 1.6), 0.0, 0.62, "turntable", segs=64, lift=0.0015)
-    t.disc((0, 0, 1.6), 0.60, 0.635, "center_mark", segs=64, lift=0.002)
+    t.disc((0, 0, 1.6), 0.60, 0.635, "turntable_ring", segs=64, lift=0.002)
     t.finish()
 
 
@@ -429,11 +430,11 @@ def build_fixtures():
         spots[key] = (lens, tgt)
     for x, tgt in ((-4.4, (-2.6, 0, -1.8)), (-1.5, (-1.2, 0, 1.2)), (1.5, (1.2, 0, 1.2)), (4.4, (2.6, 0, -1.8))):
         moving_head(p, (x, hang_y, TRUSS_Z), tgt, cones, r1=0.9)
-    # upstage flown span: back light heads, beams fanning out toward the house
+    # upstage flown span: back light heads raking down onto the deck toward the front edge
     BZ, BY = -2.6, 6.9 - TRUSS_W / 2
     for i, x in enumerate((-4.0, -2.0, 0.0, 2.0, 4.0)):
-        tgt = (x * 1.6, -0.6, 7.5 + abs(x) * 0.4)
-        moving_head(p, (x, BY, BZ), tgt, cones, cone_len=9.0, r1=1.0)
+        tgt = (x * 0.55, 0.0, 1.0 + abs(x) * 0.25)
+        moving_head(p, (x, BY, BZ), tgt, cones, r1=0.8)
     p.finish()
     cones.finish()
     return spots
