@@ -48,12 +48,17 @@ EEVEE = opt("--eevee", cast=bool)
 REHEARSAL = opt("--rehearsal", cast=bool)
 PARTIAL = opt("--allow-partial", cast=bool)  # preview: avatar without wardrobe   # neutral bright preview for checking geometry
 
+# Stage Ready look: (colour, roughness, metallic, pattern mask)
 WORN = {
-    "top_tee": (0xF4, 0xF2, 0xEE),
-    "outer_blazer": (0x3A, 0x3B, 0x3F),
-    "bottom_wide": (0x3A, 0x3A, 0x3E),
-    "shoe_sneaker": (0xF5, 0xF5, 0xF2),
+    "top_shirt": (0xF4F3EE, 0.8, 0.0, None),          # white Oxford
+    "outer_overshirt": (0xCDBA9A, 0.85, 0.0, None),   # beige linen, open
+    "bottom_wide": (0x9FB7CC, 0.85, 0.0, "denim"),    # light-wash baggy jeans
+    "shoe_sneaker": (0xF4F4F2, 0.5, 0.0, None),
+    "head_cap": (0xC62828, 0.7, 0.0, None),           # red cap
+    "eye_round": (0xC9A55A, 0.3, 1.0, None),          # gold hex frames
+    "watch_digital": (0xD4AF37, 0.3, 1.0, None),
 }
+TEXTURES = os.path.join(ROOT, "web", "public", "textures")
 
 
 def W(x, y, z):
@@ -61,6 +66,9 @@ def W(x, y, z):
 
 
 def srgb(c):
+    if isinstance(c, int):
+        c = ((c >> 16) & 255, (c >> 8) & 255, c & 255)
+
     def f(u):
         u = u / 255.0
         return u / 12.92 if u <= 0.04045 else ((u + 0.055) / 1.055) ** 2.4
@@ -197,7 +205,7 @@ def colour_cones():
     bpy.ops.object.mode_set(mode="OBJECT")
     parts = [o for o in bpy.data.objects if o.name.startswith("light_cones")]
     palette = {
-        "warm": (1.0, 0.93, 0.82),
+        "warm": (0.82, 0.88, 1.0),
         "blue": (0.25, 0.45, 1.0),
         "violet": (0.62, 0.3, 1.0),
     }
@@ -209,7 +217,7 @@ def colour_cones():
     for o in parts:
         ws = [o.matrix_world @ v.co for v in o.data.vertices]
         apex = max(ws, key=lambda v: v.z)
-        x, back = apex.x, apex.y > 2.0   # blender y = -web z; upstage span is at web z -2.6
+        x, back = apex.x, apex.y > 0.0   # blender y = -web z; upper (back) row hangs at web z -1.1
         if back:
             key = "violet" if abs(round(x)) in (2,) else "blue"
         elif abs(x) < 0.3 or abs(abs(x) - 2.92) < 0.3:
@@ -228,7 +236,7 @@ def tune_stage_materials():
             # keep the baked texture from stage.glb, just push the glow
             b = m.node_tree.nodes.get("Principled BSDF") if m.use_nodes else None
             if b:
-                b.inputs["Emission Strength"].default_value = 1.6 if n.startswith("led_wall") else 1.3
+                b.inputs["Emission Strength"].default_value = 0.8 if n.startswith("led_wall") else 1.3
             else:
                 led_wall_material(m)
         elif n == "light_cone":
@@ -246,6 +254,40 @@ def tune_stage_materials():
 
 
 # ---------------------------------------------------------------- avatar + wardrobe
+def garment_material(base):
+    hexcol, rough, metal, mask = WORN[base]
+    col = srgb(hexcol)
+    m = bpy.data.materials.new("hero_" + base)
+    m.use_nodes = True
+    nt = m.node_tree
+    b = nt.nodes.get("Principled BSDF")
+    b.inputs["Base Color"].default_value = (*col, 1)
+    b.inputs["Roughness"].default_value = rough
+    b.inputs["Metallic"].default_value = metal
+    try:
+        b.inputs["Sheen Weight"].default_value = 0.1 if metal == 0 and base != "shoe_sneaker" else 0.0
+    except Exception:
+        pass
+    path = os.path.join(TEXTURES, (mask or "") + ".png")
+    if mask and os.path.exists(path):
+        # grayscale mask tiled at 0.25 m on the garment's cube-projected UVs (1 UV unit = 1 m)
+        tc = nt.nodes.new("ShaderNodeTexCoord")
+        mp = nt.nodes.new("ShaderNodeMapping")
+        mp.inputs["Scale"].default_value = (4, 4, 4)
+        tx = nt.nodes.new("ShaderNodeTexImage")
+        tx.image = bpy.data.images.load(path)
+        tx.image.colorspace_settings.name = "Non-Color"
+        mix = nt.nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        mix.inputs["A"].default_value = (*[c * 0.72 for c in col], 1)
+        mix.inputs["B"].default_value = (*[min(1, c * 1.15) for c in col], 1)
+        nt.links.new(tc.outputs["UV"], mp.inputs["Vector"])
+        nt.links.new(mp.outputs["Vector"], tx.inputs["Vector"])
+        nt.links.new(tx.outputs["Color"], mix.inputs["Factor"])
+        nt.links.new(mix.outputs["Result"], b.inputs["Base Color"])
+    return m
+
+
 def dress_avatar():
     av = os.path.join(MODELS, "avatar.glb")
     wd = os.path.join(MODELS, "wardrobe.glb")
@@ -258,19 +300,16 @@ def dress_avatar():
     import_glb(av)
     if have_wd:
         import_glb(wd)
-    else:
-        print("HERO: no wardrobe, avatar only (preview)")
-        for ob in bpy.data.objects:
-            if ob.name.split(".")[0] in contract.get("defaultHidden", []):
-                ob.hide_render = True
-        return True
-    hide = set(contract.get("defaultHidden", []))
     present = {o.name.split(".")[0] for o in bpy.data.objects}
+    hide = set(contract.get("defaultHidden", []))
+    show = set()
     for g in WORN:
-        if g in present:   # only hide body regions for garments that actually exist
+        if g in present:   # only apply hides/shows for garments that actually exist
             hide.update(meshes.get(g, {}).get("hides", []))
+            show.update(meshes.get(g, {}).get("shows", []))
         else:
             print("HERO: missing garment", g)
+    hide -= show
     garments = set(meshes.keys())
     for ob in bpy.data.objects:
         base = ob.name.split(".")[0]
@@ -279,52 +318,38 @@ def dress_avatar():
         if base in hide:
             ob.hide_render = True
         if base in WORN and ob.type == "MESH":
-            col = srgb(WORN[base])
-            m = bpy.data.materials.new("hero_" + base)
-            m.use_nodes = True
-            b = m.node_tree.nodes.get("Principled BSDF")
-            b.inputs["Base Color"].default_value = (*col, 1)
-            rough = {"top_tee": 0.85, "outer_blazer": 0.7, "bottom_wide": 0.75, "shoe_sneaker": 0.5}[base]
-            b.inputs["Roughness"].default_value = rough
-            try:
-                b.inputs["Sheen Weight"].default_value = 0.08 if base != "shoe_sneaker" else 0.0
-            except Exception:
-                pass
             ob.data.materials.clear()
-            ob.data.materials.append(m)
-    print("HERO: avatar dressed")
+            ob.data.materials.append(garment_material(base))
+    print("HERO: avatar dressed; hidden", sorted(hide & present))
     return True
 
 
 # ---------------------------------------------------------------- scene dressing
-def wall_text():
+def text_obj(name, body, width, y, strength, color=(0.94, 0.96, 1.0), spacing=1.06, bold=0.012):
     bpy.ops.object.text_add(location=(0, 0, 0))
     t = bpy.context.object
-    t.name = "hero_wall_text"
-    t.data.body = "HRISHIKESH"
+    t.name = name
+    t.data.body = body
     t.data.align_x = "CENTER"
     t.data.align_y = "CENTER"
-    t.data.space_character = 1.12
-    t.data.offset = 0.012
-    t.data.extrude = 0.0
+    t.data.space_character = spacing
+    t.data.offset = bold
     bpy.context.view_layer.update()
-    width = t.dimensions.x
-    s = 5.0 / max(width, 1e-3)
+    s = width / max(t.dimensions.x, 1e-3)
     t.scale = (s, s, s)
     t.rotation_euler = (math.radians(90), 0, 0)
-    t.location = W(0, 3.05, -3.585)
-    m = bpy.data.materials.new("hero_text")
-    emission_only(m, (0.92, 0.96, 1.0), 6.0)
+    t.location = W(0, y, -3.585)
+    m = bpy.data.materials.new(name + "_mat")
+    emission_only(m, color, strength)
     t.data.materials.append(m)
-    # thin accent line under the name
-    bpy.ops.mesh.primitive_plane_add(size=1, location=W(0, 2.42, -3.586))
-    ln = bpy.context.object
-    ln.name = "hero_wall_line"
-    ln.rotation_euler = (math.radians(90), 0, 0)
-    ln.scale = (1.4, 0.022, 1)
-    m2 = bpy.data.materials.new("hero_line")
-    emission_only(m2, (0.15, 0.5, 1.0), 8.0)
-    ln.data.materials.append(m2)
+    return t
+
+
+def wall_text():
+    """What the web paints on the LED wall at the event (text only, no logos)."""
+    text_obj("hero_wall_name", "HRISHIKESH HUNDEKARI", 6.6, 3.35, 6.0)
+    text_obj("hero_wall_sub", "SHOP-UNI-FY  \u00b7  Small Business AI Builder Tour  \u00b7  Bengaluru",
+             5.4, 2.72, 4.0, color=(0.85, 0.9, 1.0), spacing=1.0, bold=0.004)
 
 
 def find(name):
@@ -368,18 +393,18 @@ def showtime_lights(has_avatar):
         s = find("spot_" + key).matrix_world.translation.copy()
         energy = (2600 if key == "C" else 1800) * k
         spot("hero_spot_" + key, s, mark + Vector((0, 0, 0.9 if has_avatar else 0.0)),
-             (1.0, 0.94, 0.86), energy, 17 if key == "C" else 15, blend=0.35)
+             (0.86, 0.91, 1.0), energy, 17 if key == "C" else 15, blend=0.35)
     # colour washes from the upstage flown span (back light) and the side towers
-    for x, col in ((-4.0, (0.25, 0.35, 1.0)), (-2.0, (0.75, 0.2, 1.0)), (0.0, (0.2, 0.45, 1.0)),
-                   (2.0, (0.75, 0.2, 1.0)), (4.0, (0.25, 0.35, 1.0))):
-        spot("hero_back_%d" % x, W(x, 6.6, -2.6), W(x * 0.5, 0.0, 0.8), col, 2200, 30, blend=0.6)
+    for x, col in ((-4.5, (0.18, 0.32, 1.0)), (-1.5, (0.4, 0.3, 1.0)), (1.5, (0.4, 0.3, 1.0)),
+                   (4.5, (0.18, 0.32, 1.0))):
+        spot("hero_back_%d" % x, W(x, 6.6, -1.1), W(x * 0.5, 0.0, 0.8), col, 2600, 30, blend=0.6)
     spot("hero_side_L", W(-5.2, 3.5, 1.0), W(0, 1.0, 0.0), (0.35, 0.3, 1.0), 900 * k, 25, blend=0.6)
     spot("hero_side_R", W(5.2, 3.5, 1.0), W(0, 1.0, 0.0), (0.85, 0.25, 0.9), 900 * k, 25, blend=0.6)
     # soft front key so the face reads (from the front-of-house position)
-    area("hero_key", W(-2.5, 4.5, 9.0), chest, (1.0, 0.93, 0.85), 2500 * k if has_avatar else 200, 2.5)
+    area("hero_key", W(-2.5, 4.5, 9.0), chest, (0.92, 0.94, 1.0), 2500 * k if has_avatar else 200, 2.5)
     if has_avatar:
         # front-of-house follow spot on the presenter, slightly off axis
-        spot("hero_follow", W(1.8, 6.5, 15.0), mark + Vector((0, 0, 1.15)), (1.0, 0.95, 0.88),
+        spot("hero_follow", W(1.8, 6.5, 15.0), mark + Vector((0, 0, 1.15)), (0.95, 0.96, 1.0),
              40000 * k, 6.5, blend=0.6, radius=0.3)
         # tight soft face light so the face reads against the bright wall
         head = mark + Vector((0, 0, 1.62))
@@ -399,9 +424,9 @@ def camera():
         tgt = find(CAM + "_target").matrix_world.translation.copy()
         cam_data.lens = 30
     else:
-        pos = W(0.0, 0.95, 6.2)
-        tgt = W(0.0, 1.8, -2.0)
-        cam_data.lens = 33
+        pos = W(0.0, 0.95, 6.3)
+        tgt = W(0.0, 1.85, -2.0)
+        cam_data.lens = 30
     cam.location = pos
     cam.rotation_euler = (tgt - pos).normalized().to_track_quat("-Z", "Y").to_euler()
     cam_data.clip_end = 200
@@ -447,12 +472,12 @@ def render_settings():
         except Exception as e:
             print("HERO: CPU", e)
     try:
-        sc.view_settings.view_transform = opt("--view", "AgX")
-        sc.view_settings.look = opt("--look", "AgX - Punchy")
+        sc.view_settings.view_transform = opt("--view", "Standard")
+        sc.view_settings.look = opt("--look", "None")
         print("HERO: look", sc.view_settings.look)
     except Exception:
         pass
-    sc.view_settings.exposure = opt("--exposure", 0.0, float)
+    sc.view_settings.exposure = opt("--exposure", -0.4, float)
 
 
 def bloom():
