@@ -72,6 +72,7 @@ function parseSnapshot(): P[] {
 }
 
 let cache: { at: number; products: P[] } | null = null
+let catalogSource: 'live' | 'snapshot' = 'snapshot'
 
 async function loadCatalog(req: Req): Promise<P[]> {
   if (cache && Date.now() - cache.at < 5 * 60_000) return cache.products
@@ -96,6 +97,7 @@ async function loadCatalog(req: Req): Promise<P[]> {
           }))
         if (products.length) {
           cache = { at: Date.now(), products }
+          catalogSource = 'live'
           return products
         }
       }
@@ -104,6 +106,7 @@ async function loadCatalog(req: Req): Promise<P[]> {
     // use the snapshot
   }
   const products = parseSnapshot()
+  catalogSource = 'snapshot'
   cache = { at: Date.now() - 4 * 60_000, products } // retry the live catalog in a minute
   return products
 }
@@ -304,6 +307,7 @@ export default async function handler(req: Req, res: ServerResponse) {
     swap,
     source: 'ai',
     model: out.model,
+    catalog: catalogSource,
     ms: Date.now() - t0,
   })
 }
