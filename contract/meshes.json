@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "frame": "metres, Y up, avatar faces +Z, feet at the origin. Garments are modelled in the avatar's frame and need no transforms at runtime.",
+  "files": {
+    "avatar": "/models/avatar.glb",
+    "wardrobe": "/models/wardrobe.glb",
+    "stage": "/models/stage.glb"
+  },
+  "slots": [
+    { "id": "top", "required": true, "meshes": ["top_tee", "top_oversized", "top_shirt"] },
+    { "id": "outerwear", "required": false, "meshes": ["outer_blazer", "outer_overshirt"] },
+    { "id": "bottom", "required": true, "meshes": ["bottom_slim", "bottom_wide"] },
+    { "id": "footwear", "required": true, "meshes": ["shoe_sneaker", "shoe_loafer"] },
+    { "id": "headwear", "required": false, "meshes": ["head_cap", "head_beanie", "head_bucket"] },
+    { "id": "eyewear", "required": false, "meshes": ["eye_round", "eye_shades"] },
+    { "id": "watch", "required": false, "meshes": ["watch_analog", "watch_digital"] },
+    { "id": "neckwear", "required": false, "meshes": ["neck_chain"] }
+  ],
+  "bodyRegions": [
+    "body_head", "body_neck", "body_torso", "body_hips",
+    "body_upperarm_L", "body_upperarm_R", "body_forearm_L", "body_forearm_R",
+    "body_hand_L", "body_hand_R", "body_thigh_L", "body_thigh_R",
+    "body_shin_L", "body_shin_R", "body_foot_L", "body_foot_R"
+  ],
+  "hair": ["hair_full", "hair_capped"],
+  "avatarExtras": "Optional extra avatar nodes (beard, brows, glasses_own) are always visible and must not start with body_ or hair_.",
+  "defaultHidden": ["hair_capped"],
+  "meshes": {
+    "top_tee":         { "slot": "top", "hides": ["body_torso", "body_upperarm_L", "body_upperarm_R"], "shows": [] },
+    "top_oversized":   { "slot": "top", "hides": ["body_torso", "body_upperarm_L", "body_upperarm_R"], "shows": [] },
+    "top_shirt":       { "slot": "top", "hides": ["body_torso", "body_upperarm_L", "body_upperarm_R", "body_forearm_L", "body_forearm_R"], "shows": [] },
+    "outer_blazer":    { "slot": "outerwear", "hides": ["body_upperarm_L", "body_upperarm_R", "body_forearm_L", "body_forearm_R"], "shows": [] },
+    "outer_overshirt": { "slot": "outerwear", "hides": ["body_upperarm_L", "body_upperarm_R", "body_forearm_L", "body_forearm_R"], "shows": [] },
+    "bottom_slim":     { "slot": "bottom", "hides": ["body_hips", "body_thigh_L", "body_thigh_R", "body_shin_L", "body_shin_R"], "shows": [] },
+    "bottom_wide":     { "slot": "bottom", "hides": ["body_hips", "body_thigh_L", "body_thigh_R", "body_shin_L", "body_shin_R"], "shows": [] },
+    "shoe_sneaker":    { "slot": "footwear", "hides": ["body_foot_L", "body_foot_R"], "shows": [] },
+    "shoe_loafer":     { "slot": "footwear", "hides": ["body_foot_L", "body_foot_R"], "shows": [] },
+    "head_cap":        { "slot": "headwear", "hides": ["hair_full"], "shows": ["hair_capped"] },
+    "head_beanie":     { "slot": "headwear", "hides": ["hair_full"], "shows": ["hair_capped"] },
+    "head_bucket":     { "slot": "headwear", "hides": ["hair_full"], "shows": ["hair_capped"] },
+    "eye_round":       { "slot": "eyewear", "hides": [], "shows": [] },
+    "eye_shades":      { "slot": "eyewear", "hides": [], "shows": [] },
+    "watch_analog":    { "slot": "watch", "hides": [], "shows": [] },
+    "watch_digital":   { "slot": "watch", "hides": [], "shows": [] },
+    "neck_chain":      { "slot": "neckwear", "hides": [], "shows": [] }
+  },
+  "materials": {
+    "garment": "Each garment mesh has one material. The web replaces it at runtime from the catalog product's material (color, pattern, patternColor, printText, roughness, metalness). Textures live at /textures/PATTERN.png (grayscale masks, tiled at 0.25 m per repeat on cube-projected UVs).",
+    "uvScale": "Cube projection, 1 UV unit = 1 metre."
+  },
+  "stage": {
+    "materials": ["led_wall", "led_strip", "center_mark", "light_cone"],
+    "empties": {
+      "cameras": ["cam_fit", "cam_wide", "cam_audience", "cam_close"],
+      "cameraTargets": ["cam_fit_target", "cam_wide_target", "cam_audience_target", "cam_close_target"],
+      "spots": ["spot_L", "spot_R", "spot_C"],
+      "spotTargets": ["spot_target_L", "spot_target_R", "spot_target_C"],
+      "marks": ["avatar_fit", "mark_center"]
+    },
+    "lighting": {
+      "rehearsal": "Bright and neutral. Built by the web in code (hemisphere + key + fill); stage.glb carries no lights.",
+      "showtime": "Dark house, spots from spot_* aimed at spot_target_*, colour washes; light_cone and led_strip emissive turned up."
+    },
+    "ledWall": "The web sets the led_wall material's map/emissiveMap to a canvas texture at runtime (16:9)."
+  }
+}

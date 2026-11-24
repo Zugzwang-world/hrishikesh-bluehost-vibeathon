@@ -1,0 +1,15 @@
+/* Placeholder design tokens. Part 3 art direction replaces these values only. */
+:root {
+  --bg: #0e0e14;
+  --surface: #181824;
+  --surface-2: #232333;
+  --ink: #f4f2ee;
+  --ink-dim: #a6a3b5;
+  --accent: #f2c14e;
+  --accent-ink: #14110a;
+  --radius: 14px;
+  --font: 'Avenir Next', system-ui, -apple-system, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); }
+button { font: inherit; color: inherit; cursor: pointer; }

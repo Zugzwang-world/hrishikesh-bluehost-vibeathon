@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Stage catalog",
+  "type": "object",
+  "required": ["version", "currency", "merchants", "products"],
+  "properties": {
+    "version": { "type": "integer" },
+    "currency": { "const": "INR" },
+    "merchants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slug", "name", "code", "tagline", "category", "story", "brandColor", "accentColor", "logo", "banner"],
+        "properties": {
+          "slug": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "name": { "type": "string" },
+          "code": { "type": "string", "pattern": "^[A-Z]{2}$" },
+          "tagline": { "type": "string" },
+          "category": { "type": "string" },
+          "story": { "type": "string", "description": "Two sentences." },
+          "brandColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "accentColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "logo": { "type": "string", "description": "/merchants/SLUG.png" },
+          "banner": { "type": "string", "description": "/merchants/SLUG-banner.jpg" }
+        }
+      }
+    },
+    "products": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sku", "merchant", "name", "slot", "mesh", "price", "colorName", "description", "tags", "material", "image"],
+        "properties": {
+          "sku": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]{3}$" },
+          "merchant": { "type": "string", "description": "merchant slug" },
+          "name": { "type": "string" },
+          "slot": { "enum": ["top", "outerwear", "bottom", "footwear", "headwear", "eyewear", "watch", "neckwear"] },
+          "mesh": { "type": "string", "description": "a mesh id from contract/meshes.json for this slot" },
+          "price": { "type": "integer", "description": "whole rupees" },
+          "colorName": { "type": "string" },
+          "description": { "type": "string", "description": "one line" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "material": {
+            "type": "object",
+            "required": ["color", "pattern", "patternColor", "printText", "roughness", "metalness"],
+            "properties": {
+              "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+              "pattern": { "enum": ["solid", "stripe", "check", "denim", "melange", "corduroy", "print"] },
+              "patternColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+              "printText": { "type": ["string", "null"] },
+              "roughness": { "type": "number", "minimum": 0, "maximum": 1 },
+              "metalness": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+          "image": { "type": "string", "description": "/products/SKU.webp" }
+        }
+      }
+    }
+  }
+}

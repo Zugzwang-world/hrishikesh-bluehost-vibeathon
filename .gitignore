@@ -1,0 +1,25 @@
+# Node
+node_modules/
+dist/
+.vercel/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Private (founder photos, sketches) and generated output
+private/
+out/
+
+# Blender backups
+*.blend1
+*.blend2
+*.blend@
+*.blend~
+
+# Python / OS
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
