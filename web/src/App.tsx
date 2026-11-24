@@ -5,6 +5,8 @@ import type { Catalog } from './api/types'
 import { PARAMS } from './lib/params'
 import { useStore } from './store'
 import Scene, { hasWebGL } from './scene/Scene'
+import { assetExists } from './scene/assets'
+import meshes from './contract/meshes.json'
 import { ShopRing } from './ui/ShopRing'
 import { ProductRail } from './ui/ProductRail'
 import { LookPanel } from './ui/LookPanel'
@@ -25,7 +27,7 @@ function Loader({ ready }: { ready: boolean }) {
   const busy = !ready || (active && progress < 100)
   useEffect(() => {
     if (busy) return
-    const t = window.setTimeout(() => setGone(true), 350)
+    const t = window.setTimeout(() => setGone(true), 600)
     return () => clearTimeout(t)
   }, [busy])
   if (gone) return null
@@ -49,6 +51,13 @@ export default function App() {
   const setCatalog = useStore(s => s.setCatalog)
   const [webgl, setWebgl] = useState(() => hasWebGL())
   const [failed, setFailed] = useState(false)
+  const [checked, setChecked] = useState(false)
+  useEffect(() => {
+    const f = meshes.files
+    const t = window.setTimeout(() => setChecked(true), 4000)
+    Promise.all([assetExists(f.avatar), assetExists(f.wardrobe), assetExists(f.stage)]).then(() => setChecked(true))
+    return () => clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     let tries = 0
@@ -75,7 +84,7 @@ export default function App() {
           <StageCheckCard />
           {mode === 'show' && <div className="show-title" aria-hidden><span>Showtime</span></div>}
         </div>
-        {three && <Loader ready={!!catalog} />}
+        {three && <Loader ready={!!catalog && checked} />}
       </main>
       <LookPanel />
     </div>

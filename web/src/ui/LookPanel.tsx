@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { REQUIRED, SLOTS } from '../config'
 import { bagUrl, inr, lookProducts, postAddLook } from '../lib/bag'
@@ -22,6 +23,7 @@ export function LookPanel() {
   const total = items.reduce((a, p) => a + p.price, 0)
   const merchants = new Set(items.map(p => p.merchant)).size
   const url = bagUrl(skus, title)
+  const [added, setAdded] = useState<string | null>(null)
 
   return (
     <aside className={'look-panel' + (sheetOpen ? ' is-open' : '')} aria-label="Your look">
@@ -71,8 +73,10 @@ export function LookPanel() {
           <a className="btn btn--primary btn--block" href={url} target="_top" onClick={() => postAddLook(skus, title)}>Add look to bag</a>
         ) : (
           <div className="bag-summary" role="status">
-            <strong>Bag</strong> {skus.join(', ')}
-            <button className="btn btn--primary btn--block" onClick={() => postAddLook(skus, title)}>Add look to bag</button>
+            {added === skus.join(',')
+              ? <div className="bag-summary__done"><strong>In your bag</strong> {items.length} pieces from {merchants} merchants, {inr(total)}. One checkout on Bluehost.<span className="bag-summary__skus">{skus.join(' · ')}</span></div>
+              : null}
+            <button className="btn btn--primary btn--block" onClick={() => { postAddLook(skus, title); setAdded(skus.join(',')) }}>{added === skus.join(',') ? 'Added to bag ✓' : 'Add look to bag'}</button>
           </div>
         )}
       </div>
