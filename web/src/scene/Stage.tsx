@@ -232,8 +232,8 @@ export const SHOW_DURATION = 7.8
 export function CameraRig() {
   const camera = useThree(s => s.camera)
   const size = useThree(s => s.size)
-  const st = useMemo(() => ({ shot: '' as Shot | '', t0: 0, fromPos: new Vector3(), fromTgt: new Vector3(), tgt: new Vector3().copy(ANCHORS.cam_fit_target), pos: new Vector3(), aim: new Vector3(), right: new Vector3() }), [])
-  useFrame(({ clock }) => {
+  const st = useMemo(() => ({ shot: '' as Shot | '', t0: 0, fromPos: new Vector3(), fromTgt: new Vector3(), tgt: new Vector3().copy(ANCHORS.cam_fit_target), pos: new Vector3(), aim: new Vector3(), right: new Vector3(), rail: 0 }), [])
+  useFrame(({ clock }, dt) => {
     if (PARAMS.mode === 'persona') {
       // portfolio hero: slow cinematic arc + slight dolly, head-to-toe framing, slightly low angle.
       // Works for a wide short frame (~16:6) and phones: distance fits 2.9 m of height and 1.5 m of width.
@@ -270,9 +270,12 @@ export function CameraRig() {
       const tan = Math.tan(((camera as PerspectiveCamera).fov * Math.PI) / 360)
       const phone = aspect < 0.8 // phones: overlays top and bottom, so a taller window
       const bare = PARAMS.mode === 'locked' // no UI: frame the avatar alone
-      const half = bare ? 1.2 : phone ? 2.4 : 1.75
+      // store rail open: leave room below; closed: frame him bigger (eased, so the camera glides)
+      const railWant = useStore.getState().shop ? 1 : 0
+      st.rail += (railWant - st.rail) * Math.min(1, dt * 3)
+      const half = bare ? 1.2 : phone ? 2.4 : lerp(1.4, 1.75, st.rail)
       const dist = Math.max(half / tan, (bare ? 0.75 : 0.85) / (tan * aspect))
-      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + (bare ? 0.88 : phone ? 0.45 : 0.42), ANCHORS.avatar_fit.z)
+      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + (bare ? 0.88 : phone ? 0.45 : lerp(0.78, 0.42, st.rail)), ANCHORS.avatar_fit.z)
       st.pos.sub(ANCHORS.cam_fit_target).normalize().multiplyScalar(dist).add(st.aim)
     } else {
       if (shot === 'cam_wide' && aspect >= 1.1 && aspect < 1.7) {
