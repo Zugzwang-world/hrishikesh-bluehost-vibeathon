@@ -526,6 +526,22 @@ def bloom():
         print("HERO: bloom skipped", e)
 
 
+def report_projection():
+    """Print where mark_center and a 1.75 m person on it land in the output image (pixels, top-left origin)."""
+    from bpy_extras.object_utils import world_to_camera_view
+    sc = bpy.context.scene
+    bpy.context.view_layer.update()
+    w = sc.render.resolution_x * sc.render.resolution_percentage / 100
+    h = sc.render.resolution_y * sc.render.resolution_percentage / 100
+    mark = find("mark_center").matrix_world.translation.copy()
+    pts = {}
+    for name, p in (("floor", mark), ("head_1.75m", mark + Vector((0, 0, 1.75)))):
+        v = world_to_camera_view(sc, sc.camera, p)
+        pts[name] = (v.x * w, (1 - v.y) * h)
+        print("HERO: px %s x=%.1f y=%.1f" % (name, pts[name][0], pts[name][1]))
+    print("HERO: px person_height=%.1f" % (pts["floor"][1] - pts["head_1.75m"][1]))
+
+
 def main():
     reset()
     import_glb(os.path.join(MODELS, "stage.glb"))
@@ -550,6 +566,9 @@ def main():
     render_settings()
     if not opt("--no-bloom", cast=bool):
         bloom()
+    report_projection()
+    if opt("--report-only", cast=bool):
+        return
     bpy.context.scene.render.filepath = OUT
     bpy.ops.render.render(write_still=True)
     print("HERO: wrote", OUT)
