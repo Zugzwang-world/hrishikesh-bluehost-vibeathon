@@ -148,7 +148,7 @@ export function GlbStage() {
         if (n.startsWith('led_wall')) { setupLed(m, true); out.led.push(m) }
         else if (n.startsWith('led_strip')) { m.toneMapped = false; if (m.emissive && m.emissive.getHex() === 0) m.emissive.set('#3d7bff'); out.strip.push(m) }
         else if (n.startsWith('center_mark')) { m.toneMapped = false; if (m.emissive && m.emissive.getHex() === 0) m.emissive.set('#f2c14e'); out.mark.push(m) }
-        else if (n.startsWith('light_cone')) { setupCone(m); mesh.renderOrder = 3; mesh.castShadow = false; out.cone.push(m) }
+        else if (n.startsWith('light_cone') || n.startsWith('ceiling_beam')) { setupCone(m); mesh.renderOrder = 3; mesh.castShadow = false; out.cone.push(m) }
       }
     })
     return out
