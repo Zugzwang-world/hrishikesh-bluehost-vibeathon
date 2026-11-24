@@ -391,6 +391,36 @@ def fit_outside(ob, targets, offset=None, maxdist=0.06, ymin=None, passes=2):
 SHELLS = {}
 
 
+def smoothstep(a, b, x):
+    t = min(1.0, max(0.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
+def tighten(ob, body, ease, keep=0.4, maxdist=0.12, pred=None, iters=2, weight=None):
+    """Pull loose cloth toward the body: distance d becomes ease + (d - ease) * keep. Follows any build."""
+    if body is None:
+        return
+    from mathutils.bvhtree import BVHTree
+    tree = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    me = ob.data
+    for v in me.vertices:
+        if pred and not pred(v.co):
+            continue
+        loc, nrm, idx, dist = tree.find_nearest(v.co, maxdist)
+        if loc is None:
+            continue
+        d = (v.co - loc).dot(nrm)
+        if d > ease:
+            w = weight(v.co) if weight else 1.0
+            dn = d + (ease + (d - ease) * keep - d) * w
+            v.co = loc + nrm * dn + (v.co - loc - nrm * d)
+    me.update()
+    sm = ob.modifiers.new("relax", "SMOOTH")
+    sm.factor = 0.5
+    sm.iterations = iters
+    apply_mods(ob)
+
+
 def cinch(ob, body, pred, offset, falloff=0.045, maxdist=0.25):
     """Pull open boundary loops (neckline, cuffs) snug to the body so no gap shows, blending inwards."""
     if body is None:
@@ -597,6 +627,7 @@ def build_top_tee(body, under):
             sleeve_cut(bm, side, 0.20, 0.085)
 
     ob = volume_to_shell("top_tee", build, 0.008, 6, cuts)
+    tighten(ob, body, 0.02, 0.45, weight=lambda c: smoothstep(0.98, 1.12, gy(c)))
     fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     cinch(ob, body, is_neck, 0.003)
     cinch(ob, body, is_cuff, 0.01, falloff=0.05)
@@ -620,6 +651,7 @@ def build_top_oversized(body, under):
             sleeve_cut(bm, side, 0.26, 0.10)
 
     ob = volume_to_shell("top_oversized", build, 0.008, 6, cuts)
+    tighten(ob, body, 0.035, 0.6, weight=lambda c: smoothstep(0.98, 1.12, gy(c)))
     fit_outside(ob, [(body, 0.014)] + [(u, 0.009) for u in under])
     cinch(ob, body, is_neck, 0.006)
     cinch(ob, body, is_cuff, 0.02, falloff=0.05)
@@ -645,6 +677,7 @@ def build_top_shirt(body, under):
             sleeve_cut(bm, side, SLEEVE_T, 0.08)
 
     ob = volume_to_shell("top_shirt", build, 0.007, 5, cuts)
+    tighten(ob, body, 0.018, 0.42, weight=lambda c: smoothstep(0.98, 1.12, gy(c)))
     fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     cinch(ob, body, is_neck, 0.01, falloff=0.03)
     cinch(ob, body, is_cuff, 0.006, falloff=0.06)
@@ -686,6 +719,8 @@ def build_outer(name, body, under, length_y, extra, lapel):
         front_open_cut(bm, 1.05 if lapel else 0.90, 1.50, 0.105 if lapel else 0.075, length_y, 0.07 if lapel else 0.01)
 
     ob = volume_to_shell(name, build, 0.008, 6, cuts)
+    if not lapel:  # the blazer keeps its structured, built shape
+        tighten(ob, body, 0.03, 0.55, weight=lambda c: smoothstep(length_y + 0.06, length_y + 0.24, gy(c)))
     fit_outside(ob, [(body, 0.025)] + [(u, 0.011) for u in under])
     cinch(ob, body, lambda c: is_cuff(c) and gy(c) < 1.05, 0.013, falloff=0.07)
     if lapel:
@@ -759,6 +794,10 @@ def build_bottom(name, body, wide, under=()):
             bisect(bm, G(0, hem, 0), Vector((0, 0, -1)), lambda c, side=side: gy(c) < 0.2 and c.x * side > 0)
 
     ob = volume_to_shell(name, build, 0.006, 6, cuts)
+    if wide:
+        tighten(ob, body, 0.014, 0.4, weight=lambda c: smoothstep(0.56, 0.76, gy(c)))
+    else:
+        tighten(ob, body, 0.01, 0.4, weight=lambda c: smoothstep(0.12, 0.32, gy(c)))
     fit_outside(ob, [(body, 0.008)], ymin=0.16)
     # hems are cut wide enough to swallow both shoe collars, so no push against the shoes is needed
     return finish(ob, 3200, 0.004)
@@ -934,7 +973,27 @@ def tilt(ob, deg, pivot_y=1.70):
     ob.data.update()
 
 
-def hat_finish(ob, body, hv):
+def relax_boundary(ob, iters=10):
+    """Even out open edges (hat bands, brims) so they read as clean curves, not zigzags."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    B = [v for v in bm.verts if v.is_boundary]
+    Bs = set(B)
+    for _ in range(iters):
+        new = {}
+        for v in B:
+            nb = [e.other_vert(v) for e in v.link_edges if e.is_boundary and e.other_vert(v) in Bs]
+            if len(nb) == 2:
+                new[v] = (v.co * 2 + nb[0].co + nb[1].co) / 4
+        for v, c in new.items():
+            v.co = c
+    bm.to_mesh(ob.data)
+    bm.free()
+
+
+def hat_finish(ob, body, hv, th, extra=None):
+    """Tilt, push the single-surface hat outside head + hair, smooth its edges, then give it thickness.
+    No decimation: decimating after subdivision is what made the band edge jagged."""
     tilt(ob, HAT_TILT[ob.name])
     prox = head_proxy_obj(hv)
     targets = [(body, 0.006), (prox, 0.006)]
@@ -942,7 +1001,16 @@ def hat_finish(ob, body, hv):
         targets.append((HEAD["obj"], 0.006))
     fit_outside(ob, targets, maxdist=0.05)
     delete(prox)
-    return finish(ob, 6000, 0.0)
+    relax_boundary(ob)
+    sm = ob.modifiers.new("even", "SMOOTH")
+    sm.factor = 0.6
+    sm.iterations = 4
+    apply_mods(ob)
+    relax_boundary(ob, 6)
+    solidify_subsurf(ob, th)
+    if extra:
+        extra(ob)
+    return finish(ob, 20000, 0.0)
 
 
 def solidify_subsurf(ob, th, levels=1):
@@ -981,13 +1049,16 @@ def build_head_cap(body, under):
         for i in range(seg):
             bm.faces.new((r0[i], r1[i], r1[i + 1], r0[i + 1]))
     ob = bm_to_obj("head_cap", bm)
-    solidify_subsurf(ob, 0.006)
-    bm = bmesh.new()
-    bm.from_mesh(ob.data)
-    sphere(bm, G(cx, top + 0.004, cz), 0.012, 0.007, 0.012, 12, 6)  # button
-    bm.to_mesh(ob.data)
-    bm.free()
-    return hat_finish(ob, body, hv)
+
+    def button(o):
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        # the crown top after the tilt: highest vertex
+        topv = max(bm.verts, key=lambda v: v.co.z).co.copy()
+        sphere(bm, topv + Vector((0, 0, 0.002)), 0.011, 0.006, 0.011, 12, 6)
+        bm.to_mesh(o.data)
+        bm.free()
+    return hat_finish(ob, body, hv, 0.006, button)
 
 
 def build_head_beanie(body, under):
@@ -1000,8 +1071,7 @@ def build_head_beanie(body, under):
     loft(bm, [hring(cx, base - 0.006, cz, rx + 0.016, rz + 0.016), hring(cx, base + 0.06, cz, rx + 0.016, rz + 0.016)],
          40, False, False)  # folded cuff
     ob = bm_to_obj("head_beanie", bm)
-    solidify_subsurf(ob, 0.008)
-    return hat_finish(ob, body, hv)
+    return hat_finish(ob, body, hv, 0.008)
 
 
 def build_head_bucket(body, under):
@@ -1021,8 +1091,7 @@ def build_head_bucket(body, under):
         rings.append(hring(cx, yy, cz, RX * r, RZ * r))
     loft(bm, rings, 40, cap0=False, cap1=True)
     ob = bm_to_obj("head_bucket", bm)
-    solidify_subsurf(ob, 0.006)
-    return hat_finish(ob, body, hv)
+    return hat_finish(ob, body, hv, 0.006)
 
 
 # ---------------------------------------------------------------- eyewear, watch, chain
