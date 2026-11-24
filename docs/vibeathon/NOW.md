@@ -1,32 +1,30 @@
 # NOW
 
-Updated 11:20 IST, 24 Nov 2026.
+Updated 11:37 IST, 24 Nov 2026.
 
 ## Live
 
-- Stage (placeholder 2D flow): https://hrishikesh-stage.vercel.app — try https://hrishikesh-stage.vercel.app/?host=https://example.app.bluehost.ai&try=CT-001
+- Stage (3D): https://hrishikesh-stage.vercel.app — with a host: https://hrishikesh-stage.vercel.app/?host=https://example.app.bluehost.ai&try=CT-001
 - Repo: https://github.com/Zugzwang-world/hrishikesh-bluehost-vibeathon
-- CSVs for the Bluehost prompts: https://hrishikesh-stage.vercel.app/catalog/merchants.csv and https://hrishikesh-stage.vercel.app/catalog/products.csv (also on the founder's Desktop). Catalog JSON at /catalog/catalog.json. All images are intentional placeholders under their final names.
+- CSVs for the Bluehost prompts: /catalog/merchants.csv and /catalog/products.csv on the Stage (also on the founder's Desktop).
+- On main now: 3D fitting flow with shop ring, product rail and look panel; avatar.glb (toy figure, faceless, hair and beard), wardrobe.glb (all 17 meshes fitted), stage.glb (all hooks); AI stylist and stage check (Haiku 5.5, 3–4 s, keyword and rules fallbacks); Eevee product shots for all 43 SKUs; pattern textures; hero.jpg (full look on stage) and persona.png.
 
-## Lanes (parallel worktrees, each pushes straight to main)
+## Lanes
 
-| Lane | Agent | First deliverable | Due |
-| --- | --- | --- | --- |
-| A Avatar | Opus xhigh | Designer-toy body blockout avatar.glb (faceless head, hair, beard) | 11:40 |
-| B Wardrobe | Opus xhigh | top_tee, bottom_wide, shoe_sneaker in wardrobe.glb | 11:50 |
-| C Stage | Opus xhigh | stage.glb with named hooks; hero.jpg later | 11:50 |
-| D1 Web scene/UI | Opus xhigh | 3D fitting flow with primitives | 11:50 |
-| D2 Stylist/stage check | Opus xhigh | Client module with keyword fallback, then /api/stylist, /api/stagecheck | 11:40 / 12:00 / 12:15 |
-| E Catalog/renders | Sonnet xhigh | Pattern textures, nicer placeholders, then Eevee product shots | 11:40 |
-| F Ops | Coordinator | Resend in the Bluehost app | when the founder says the Bluehost app exists |
+| Lane | Status |
+| --- | --- |
+| A Avatar | Running: refining hair and proportions; persona.png live |
+| B Wardrobe | Running: all 17 meshes fitted to the avatar, refining |
+| C Stage | Running: stage set and hero.jpg live, polishing |
+| D1 Web scene/UI | Running: Go on stage, Stage check card, phone sheet, loader |
+| D2 Stylist/stage check | Done |
+| E Catalog/renders | Running: all 43 product shots rendered from the fitted wardrobe |
+| F Ops | Waiting for the Bluehost app URL |
 
 All lanes: last push 12:40 IST.
 
 ## Blockers
 
-- Founder photos not in Downloads (newest images are a whiteboard and phone screenshots). Avatar ships faceless with placeholder hair and beard until they arrive.
-- Vercel GitHub app can't see the repo; a Coordinator watcher deploys main within a minute of each push.
-
-## Next
-
-- Bluehost app URL from the founder, so DEFAULT_HOST can be set and Lane F can start.
+- Founder photos not in private/ yet; avatar stays faceless with placeholder hair and beard.
+- Bluehost app URL not known yet: DEFAULT_HOST unset, Resend not connected.
+- Vercel GitHub app can't see the repo; the Coordinator watcher deploys main about 20 s after each push.
