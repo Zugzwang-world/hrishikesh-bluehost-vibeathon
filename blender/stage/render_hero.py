@@ -419,7 +419,11 @@ def camera():
     cam_data = bpy.data.cameras.new("hero_cam")
     cam = bpy.data.objects.new("hero_cam", cam_data)
     bpy.context.scene.collection.objects.link(cam)
-    if CAM and find(CAM) and find(CAM + "_target"):
+    if opt("--pos"):
+        pos = W(*[float(v) for v in opt("--pos").split(",")])
+        tgt = W(*[float(v) for v in opt("--tgt").split(",")])
+        cam_data.lens = opt("--lens", 24, float)
+    elif CAM and find(CAM) and find(CAM + "_target"):
         pos = find(CAM).matrix_world.translation.copy()
         tgt = find(CAM + "_target").matrix_world.translation.copy()
         cam_data.lens = 30

@@ -65,9 +65,10 @@ def led_wall_tex(w=1536, h=640, seed=11):
     cell = h / 9.0
     # cells counted from the corner: (i along x, j along y); dense near the corner, thinning out
     for corner in ("bl", "tr"):
-        for i in range(7):
+        for i in range(6):
             for j in range(5):
-                if i + j * 1.3 > 6.5 or rng.random() < 0.18:
+                # dense in the corner, thinning out; keeps the centre band clear for the web's text
+                if i * 1.25 + j * 1.15 > 5.2 or rng.random() < 0.2:
                     continue
                 if corner == "bl":
                     cx, cy = cell * (0.9 + i * 1.05), h - cell * (0.9 + j * 1.05)
