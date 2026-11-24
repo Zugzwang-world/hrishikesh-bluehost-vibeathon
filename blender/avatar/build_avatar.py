@@ -22,7 +22,7 @@ OUT_BLEND = os.path.join(HERE, "avatar.blend")
 # ---------------------------------------------------------------- look
 SKIN_SRGB = (0xA0, 0x6C, 0x52)  # sampled from the founder's photos (warm medium brown)
 HAIR_SRGB = (0x1C, 0x15, 0x12)
-STUBBLE_SRGB = (0x5E, 0x42, 0x36)
+STUBBLE_SRGB = (0x72, 0x50, 0x41)
 SKIN_ROUGH = 0.55
 HAIR_ROUGH = 0.78
 
@@ -370,8 +370,9 @@ def beard_off(u, v, va, vb):
 def curly_base_off(u, v, va, vb):
     p = head_point(u, v)
     rel = p - HEAD_C
-    off = 0.012 + 0.004 * smoothstep(-0.02, 0.08, rel.y)
-    off += 0.026 * math.exp(-((v - D(18)) / D(42)) ** 2)          # volume on top
+    off = 0.013 + 0.004 * smoothstep(-0.02, 0.08, rel.y)
+    off += 0.012 * math.exp(-((v - D(18)) / D(42)) ** 2)          # volume on top
+    off += 0.009 * math.exp(-((v - D(70)) / D(22)) ** 2) * (abs(math.sin(u)) ** 0.5)  # fuller sides
     off += 0.010 * math.exp(-(u / D(50)) ** 2) * math.exp(-((v - D(50)) / D(25)) ** 2)  # front lift
     t = smoothstep(0.0, D(16), vb - v)
     return 0.002 + (off - 0.002) * t

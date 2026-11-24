@@ -30,7 +30,53 @@ for o in list(bpy.context.scene.objects):
 # (torso + upper arms, offset outward), so the portrait never depends on another lane's asset.
 import bmesh  # noqa: E402
 
-if os.environ.get("PERSONA_TOP", "tee") == "tee":
+# Today's outfit from main's wardrobe.glb (read-only), colours from the catalog items:
+# KT-002 black poplin shirt, KT-006 beige linen overshirt, SW-001 light-wash baggy jeans,
+# KK-001 white sneakers, LL-006 gold hex frames, SH-001 gold digital watch.
+OUTFIT = {
+    "top_shirt": ((0x12, 0x12, 0x12), 0.75, 0.0),
+    "outer_overshirt": ((0xCD, 0xBA, 0x9A), 0.85, 0.0),
+    "bottom_wide": ((0x9F, 0xB7, 0xCC), 0.8, 0.0),
+    "shoe_sneaker": ((0xF4, 0xF4, 0xF2), 0.6, 0.0),
+    "eye_round": ((0xC9, 0xA5, 0x5A), 0.28, 1.0),
+    "watch_digital": ((0xD4, 0xAF, 0x37), 0.3, 1.0),
+}
+WARDROBE = os.path.join(ROOT, "web", "public", "models", "wardrobe.glb")
+MODE = os.environ.get("PERSONA_TOP", "outfit")
+
+
+def lin(c):
+    c = c / 255.0
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+if MODE == "outfit" and os.path.exists(WARDROBE):
+    import json
+    contract = json.load(open(os.path.join(ROOT, "contract", "meshes.json")))
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=WARDROBE)
+    hide = set()
+    for o in set(bpy.data.objects) - before:
+        base = o.name.split(".")[0]
+        if o.type != "MESH":
+            continue
+        if base not in OUTFIT:
+            bpy.data.objects.remove(o)
+            continue
+        col, rough, metal = OUTFIT[base]
+        m = bpy.data.materials.new("persona_" + base)
+        m.use_nodes = True
+        b_ = m.node_tree.nodes.get("Principled BSDF")
+        b_.inputs["Base Color"].default_value = tuple(lin(c) for c in col) + (1.0,)
+        b_.inputs["Roughness"].default_value = rough
+        b_.inputs["Metallic"].default_value = metal
+        o.data.materials.clear()
+        o.data.materials.append(m)
+        hide |= set(contract["meshes"][base]["hides"])
+    for o in list(bpy.data.objects):
+        if o.name.split(".")[0] in hide:
+            bpy.data.objects.remove(o)
+elif MODE == "tee":
     parts = [o for o in bpy.data.objects
              if o.name.split(".")[0] in ("body_neck", "body_torso", "body_upperarm_L", "body_upperarm_R",
                                          "body_hips")]
@@ -146,21 +192,34 @@ def area(name, loc, target, size, energy, color=(1, 1, 1)):
     return lo
 
 
-face = B(0, 1.58, 0.02)
-area("key", B(-1.1, 2.3, 1.5), face, 2.2, 75, (1.0, 0.96, 0.92))
-area("fill", B(1.6, 1.6, 1.2), face, 3.0, 22, (0.92, 0.95, 1.0))
-area("rim", B(0.9, 2.2, -1.4), face, 1.2, 70, (1.0, 0.98, 0.95))
-area("rim2", B(-1.0, 1.9, -1.2), face, 1.2, 35, (0.95, 0.97, 1.0))
+LIGHT = os.environ.get("PERSONA_LIGHT", "studio")
+face = B(0, 1.50, 0.02)
+if LIGHT == "stage":
+    # on-stage check: dark house, white follow spot, cobalt and violet washes
+    bg.inputs["Strength"].default_value = 0.02
+    area("spot", B(-0.6, 3.2, 2.2), face, 0.6, 260, (1.0, 0.97, 0.93))
+    area("cobalt", B(-1.8, 1.8, 0.6), face, 1.5, 220, (0x2D / 255, 0x4B / 255, 1.0))
+    area("violet", B(1.6, 2.2, -1.3), face, 1.2, 260, (0x7A / 255, 0x5C / 255, 1.0))
+    area("cobalt_rim", B(-0.9, 2.0, -1.6), face, 1.0, 160, (0x2D / 255, 0x4B / 255, 1.0))
+else:
+    area("key", B(-1.1, 2.3, 1.5), face, 2.2, 80, (1.0, 0.96, 0.92))
+    area("fill", B(1.6, 1.6, 1.2), face, 3.0, 24, (0.92, 0.95, 1.0))
+    area("rim", B(0.9, 2.2, -1.4), face, 1.2, 70, (1.0, 0.98, 0.95))
+    area("rim2", B(-1.0, 1.9, -1.2), face, 1.2, 35, (0.95, 0.97, 1.0))
+    # a whisper of the stage colours on the edges
+    area("cobalt_kiss", B(-1.4, 1.7, -0.9), face, 1.0, 25, (0x2D / 255, 0x4B / 255, 1.0))
+    area("violet_kiss", B(1.3, 1.9, -1.0), face, 1.0, 25, (0x7A / 255, 0x5C / 255, 1.0))
 
 cam_data = bpy.data.cameras.new("cam")
 cam_data.lens = 85
 cam = bpy.data.objects.new("cam", cam_data)
 sc.collection.objects.link(cam)
 sc.camera = cam
-az = math.radians(28)
-target = Vector((0.0, 1.545, 0.0))
-dist = 1.5
-cam.location = B(target.x + dist * math.sin(az), 1.62, target.z + dist * math.cos(az))
+az = math.radians(float(os.environ.get("PERSONA_AZ", "26")))
+# waist-up framing so the outfit (overshirt, shirt, frames, watch) reads
+target = Vector((0.04, float(os.environ.get("PERSONA_TY", "1.38")), 0.0))
+dist = float(os.environ.get("PERSONA_DIST", "2.45"))
+cam.location = B(target.x + dist * math.sin(az), target.y + 0.12, target.z + dist * math.cos(az))
 tb = B(target.x, target.y, target.z)
 cam.rotation_euler = (tb - cam.location).to_track_quat("-Z", "Y").to_euler()
 
