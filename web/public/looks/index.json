@@ -34,6 +34,364 @@
    ],
    "title": "Hrishikesh today",
    "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-001,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-001",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-001,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-001,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-001",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-001,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-002,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-002",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-002,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-003,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-003",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-003,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-004,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-004",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-004,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-005,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-005",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-005,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-001,SH-004,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SH-004",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SH-004,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-001,SH-005,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SH-005",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SH-005,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-001,SW-002",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-002"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SW-002.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-001,SW-003",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-003"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SW-003.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-001,SW-004",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-004"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SW-004.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-001,SW-005",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-005"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SW-005.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-001,SW-006",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-006"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SW-006.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-002,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-002",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-002,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-003,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-003",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-003,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-007,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-007",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-006,LL-007,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-007,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-007",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-002,KT-007,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-003,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-003",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-003,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-004,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-004",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-004,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-005,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-005",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-005,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-006,KT-008,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-006",
+    "KT-008",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-001,KT-006,KT-008,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-002,KT-002,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-002",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-002,KT-002,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-003,KT-002,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-003",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-003,KT-002,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-004,KT-002,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-004",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-004,KT-002,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-004,KT-008,LL-006,SH-001,SH-005,SW-004",
+   "skus": [
+    "KK-004",
+    "KT-008",
+    "LL-006",
+    "SH-001",
+    "SH-005",
+    "SW-004"
+   ],
+   "title": "Festive Bengaluru",
+   "src": "/looks/KK-004,KT-008,LL-006,SH-001,SH-005,SW-004.webp"
+  },
+  {
+   "key": "KK-005,KT-002,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-005",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": null,
+   "src": "/looks/KK-005,KT-002,KT-006,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-005,KT-002,LL-002,LL-007,SH-003,SW-003",
+   "skus": [
+    "KK-005",
+    "KT-002",
+    "LL-002",
+    "LL-007",
+    "SH-003",
+    "SW-003"
+   ],
+   "title": "All Black",
+   "src": "/looks/KK-005,KT-002,LL-002,LL-007,SH-003,SW-003.webp"
   }
  ]
 }
