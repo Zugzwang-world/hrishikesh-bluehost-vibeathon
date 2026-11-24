@@ -139,7 +139,15 @@ function GlbGarment({ node, p }: { node: Object3D; p: Product }) {
     const obj = node.clone(true)
     node.matrixWorld.decompose(obj.position, obj.quaternion, obj.scale)
     const m = garmentMaterial(p)
-    obj.traverse(o => { const mesh = o as Mesh; if (mesh.isMesh) { mesh.material = m; mesh.castShadow = true; mesh.receiveShadow = true } })
+    const sole = (p.material as { soleColor?: string }).soleColor
+    const soleMat = sole ? new MeshStandardMaterial({ color: sole, roughness: 0.85 }) : null
+    obj.traverse(o => {
+      const mesh = o as Mesh
+      if (!mesh.isMesh) return
+      const orig = ((mesh.material as Material | undefined)?.name || '') + ' ' + mesh.name
+      mesh.material = soleMat && /sole/i.test(orig) ? soleMat : m
+      mesh.castShadow = true; mesh.receiveShadow = true
+    })
     const box = new Box3().setFromObject(node)
     return { obj, front: box.isEmpty() ? 0.13 : box.max.z }
   }, [node, p])

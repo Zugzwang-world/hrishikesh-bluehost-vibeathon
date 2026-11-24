@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { REQUIRED } from '../config'
-import { inr } from '../lib/bag'
+import { inr, thrift } from '../lib/bag'
 import { useStore } from '../store'
 
 /** The open shop's products. Click or arrow keys to equip (left/right), up/down switches shop. */
@@ -61,7 +61,8 @@ export function ProductRail() {
               onClick={() => (on && !REQUIRED.includes(p.slot) ? clear(p.slot) : equip(p.sku))}>
               <span className="product-card__img"><img src={p.image} alt="" loading="lazy" /></span>
               <span className="product-card__name">{p.name}</span>
-              <span className="product-card__meta">{p.colorName} · {inr(p.price)}</span>
+              <span className="product-card__meta">{[thrift(p).condition, thrift(p).size, inr(p.price)].filter(Boolean).join(' · ')}</span>
+              {thrift(p).oneOfOne && <span className="product-card__one">1 OF 1</span>}
               {on && <span className="product-card__tag">On</span>}
             </button>
           )
