@@ -352,6 +352,7 @@ FLOOR_Y = -RISER_H
 WALL_Z = -3.6
 WALL_W, WALL_H, WALL_Y0 = 8.64, 3.6, 0.5   # 2.4 : 1 main screen
 CEIL_Y = 7.4
+ROW0_Z = 6.0           # first audience row (behind cam_fit at z 5.6 so the fitting shot stays clean)
 TRUSS_X = 5.2
 TRUSS_Z = 1.3          # front (lower) truss line
 TRUSS_TOP = 6.2        # top of the front span
@@ -628,7 +629,7 @@ def build_monitors():
 def build_audience():
     seats = Part("audience_seats")
     people = Part("audience_people")
-    row_z = [4.5 + i * 0.92 for i in range(9)]
+    row_z = [ROW0_Z + i * 0.92 for i in range(9)]
     for ri, z0 in enumerate(row_z):
         floor = FLOOR_Y
         xs = [0.95 + 0.58 * k for k in range(11)]
@@ -691,7 +692,7 @@ def build_house():
             l.box((sx * 11.93, 2.2, z), (0.05, 0.9, 0.08), "aisle_light")
     # aisle step lights along the centre aisle
     for i in range(9):
-        z = 4.5 + i * 0.92 + 0.3
+        z = ROW0_Z + i * 0.92 + 0.3
         for sx in (-1, 1):
             l.box((sx * 0.62, FLOOR_Y + 0.12, z), (0.04, 0.05, 0.1), "aisle_light")
     l.finish()

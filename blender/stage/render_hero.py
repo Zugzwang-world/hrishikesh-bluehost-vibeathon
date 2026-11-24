@@ -452,7 +452,7 @@ def world():
 def render_settings():
     sc = bpy.context.scene
     r = sc.render
-    r.resolution_x, r.resolution_y = 1920, 1080
+    r.resolution_x, r.resolution_y = [int(v) for v in opt("--size", "1920x1080").split("x")]
     r.resolution_percentage = RES
     r.image_settings.file_format = "JPEG"
     r.image_settings.quality = 90
