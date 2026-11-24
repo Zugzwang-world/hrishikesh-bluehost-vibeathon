@@ -705,6 +705,47 @@ def build_top_oversized(body, under):
     return finish(ob, 3600, 0.004)
 
 
+def project_panel(bm, tree, pts_fn, rows, cols, lift_fn, flip=False):
+    """A smooth panel laid on a garment: grid points (glTF x, y) are projected from the front onto the surface."""
+    grid = []
+    for i in range(rows + 1):
+        row = []
+        for j in range(cols + 1):
+            x, y = pts_fn(i / rows, j / cols)
+            hit, nrm, idx, dist = tree.ray_cast(G(x, y, 0.5), Vector((0, 1, 0)), 1.0)
+            if hit is None:
+                hit, nrm = G(x, y, 0.15), Vector((0, -1, 0))
+            row.append(bm.verts.new(hit + nrm * lift_fn(i / rows, j / cols)))
+        grid.append(row)
+    for i in range(rows):
+        for j in range(cols):
+            q = (grid[i][j], grid[i][j + 1], grid[i + 1][j + 1], grid[i + 1][j])
+            bm.faces.new(tuple(reversed(q)) if flip else q)
+
+
+def add_shirt_details(ob):
+    """Button placket, turn-down collar points and buttons, so the shirt reads as a shirt."""
+    from mathutils.bvhtree import BVHTree
+    tree = BVHTree.FromObject(ob, bpy.context.evaluated_depsgraph_get())
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    project_panel(bm, tree, lambda u, v: (-0.017 + 0.034 * v, 0.94 + (1.43 - 0.94) * u), 28, 3, lambda u, v: 0.0025)
+    for side in (1, -1):
+        top = lambda u: (side * (0.016 + 0.072 * u), 1.452 - 0.02 * u)
+        tip = (side * 0.05, 1.365)
+
+        def pts(u, v, top=top, tip=tip):
+            tx, ty = top(v)
+            return (tx + (tip[0] - tx) * u * (1 - 0.35 * v), ty + (tip[1] - ty) * u)
+        project_panel(bm, tree, pts, 6, 6, lambda u, v: 0.004 + 0.002 * u, flip=side < 0)
+    for y in (1.37, 1.27, 1.17, 1.07, 0.98):
+        hit, nrm, idx, dist = tree.ray_cast(G(0, y, 0.5), Vector((0, 1, 0)), 1.0)
+        if hit is not None:
+            sphere(bm, hit + nrm * 0.004, 0.0055, 0.0055, 0.0025, 10, 6)
+    bm.to_mesh(ob.data)
+    bm.free()
+
+
 def build_top_shirt(body, under):
     extra = 0.018
 
@@ -728,7 +769,8 @@ def build_top_shirt(body, under):
     fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     cinch(ob, body, is_neck, 0.01, falloff=0.03)
     cinch(ob, body, is_cuff, 0.006, falloff=0.06)
-    return finish(ob, 4000, 0.004)
+    add_shirt_details(ob)
+    return finish(ob, 4400, 0.004)
 
 
 def front_open_cut(bm, button_y, top_y, top_half, hem_y, hem_half):
