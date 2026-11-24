@@ -359,6 +359,58 @@ def fit_outside(ob, targets, offset=None, maxdist=0.06, ymin=None, passes=2):
 SHELLS = {}
 
 
+def cinch(ob, body, pred, offset, falloff=0.045, maxdist=0.25):
+    """Pull open boundary loops (neckline, cuffs) snug to the body so no gap shows, blending inwards."""
+    if body is None:
+        return
+    from mathutils.bvhtree import BVHTree
+    from mathutils.kdtree import KDTree
+    tree = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    B = [v for v in bm.verts if v.is_boundary and pred(v.co)]
+    if not B:
+        bm.free()
+        return
+    disp = []
+    for v in B:
+        loc, nrm, idx, dist = tree.find_nearest(v.co, maxdist)
+        if loc is None:
+            disp.append(Vector())
+            continue
+        disp.append((loc + nrm * offset) - v.co)
+    kd = KDTree(len(B))
+    for i, v in enumerate(B):
+        kd.insert(v.co, i)
+    kd.balance()
+    moves = []
+    for v in bm.verts:
+        co, i, d = kd.find(v.co)
+        if d is None or d > falloff:
+            continue
+        # average the displacement of nearby boundary verts for smoothness
+        acc, wsum = Vector(), 0.0
+        for co2, j, d2 in kd.find_range(v.co, max(0.012, d + 0.01)):
+            w = 1.0 / (d2 + 0.003)
+            acc += disp[j] * w
+            wsum += w
+        w = (1.0 - d / falloff) ** 2 * (3 - 2 * (1.0 - d / falloff)) if d > 0 else 1.0
+        moves.append((v, acc / wsum * w))
+    for v, m in moves:
+        v.co += m
+    bm.to_mesh(ob.data)
+    bm.free()
+    print(f"WARDROBE:   cinch {ob.name}: {len(B)} boundary verts")
+
+
+def is_neck(c):
+    return gy(c) > 1.38 and math.hypot(c.x, c.y) < 0.16
+
+
+def is_cuff(c):
+    return abs(c.x) > 0.2 and gy(c) > 0.85
+
+
 def finish(ob, target_tris, thickness, solid_offset=1.0, sharp_deg=None):
     tris = tri_count(ob)
     if tris > target_tris:
@@ -492,6 +544,8 @@ def build_top_tee(body, under):
             sleeve_cut(bm, side, 0.20, 0.085)
 
     ob = volume_to_shell("top_tee", build, 0.008, 6, cuts)
+    cinch(ob, body, is_neck, 0.003)
+    cinch(ob, body, is_cuff, 0.01, falloff=0.05)
     fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     return finish(ob, 3600, 0.004)
 
@@ -513,6 +567,8 @@ def build_top_oversized(body, under):
             sleeve_cut(bm, side, 0.26, 0.10)
 
     ob = volume_to_shell("top_oversized", build, 0.008, 6, cuts)
+    cinch(ob, body, is_neck, 0.006)
+    cinch(ob, body, is_cuff, 0.02, falloff=0.05)
     fit_outside(ob, [(body, 0.014)] + [(u, 0.009) for u in under])
     return finish(ob, 3600, 0.004)
 
@@ -536,6 +592,8 @@ def build_top_shirt(body, under):
             sleeve_cut(bm, side, 0.56, 0.08)
 
     ob = volume_to_shell("top_shirt", build, 0.007, 5, cuts)
+    cinch(ob, body, is_neck, 0.01, falloff=0.03)
+    cinch(ob, body, is_cuff, 0.006, falloff=0.06)
     fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     return finish(ob, 4000, 0.004)
 
@@ -574,6 +632,7 @@ def build_outer(name, body, under, length_y, extra, lapel):
         front_open_cut(bm, 1.05 if lapel else 0.90, 1.50, 0.105 if lapel else 0.075, length_y, 0.07 if lapel else 0.01)
 
     ob = volume_to_shell(name, build, 0.008, 6, cuts)
+    cinch(ob, body, lambda c: is_cuff(c) and gy(c) < 1.05, 0.013, falloff=0.07)
     fit_outside(ob, [(body, 0.025)] + [(u, 0.011) for u in under])
     if lapel:
         add_lapels(ob)
