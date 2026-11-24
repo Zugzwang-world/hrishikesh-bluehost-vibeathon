@@ -23,7 +23,12 @@ function place(t: Tip): Place {
   const W = window.innerWidth, H = window.innerHeight
   if (r.width === 0 || r.bottom < 0 || r.top > H) return null
   const clampX = (x: number) => Math.max(8, Math.min(W - BW - 8, x))
-  if (t.prefer === 'right' && r.right + BW + 16 < W) return { top: Math.max(8, r.top + 34), left: r.right + 12, side: 'left' }
+  if (t.prefer === 'right') {
+    if (r.right + BW + 16 < W) return { top: Math.max(8, r.top + 34), left: r.right + 12, side: 'left' }
+    // phones: point at the card header; hide while the card sits under the sticky lock bar
+    const y = r.top + 50
+    return y > H - 150 ? null : { top: y, left: clampX(r.left + 40), side: 'up' }
+  }
   if (t.prefer === 'above') return { top: Math.max(8, r.top - BH - 12), left: clampX(r.right - BW), side: 'down' }
   return { top: Math.min(H - BH - 8, r.bottom + 10), left: clampX(r.left + 20), side: 'up' }
 }
