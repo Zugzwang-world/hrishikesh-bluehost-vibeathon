@@ -433,6 +433,7 @@ def hang(ob, y0, bins=90, xmax=0.30):
                 moved += 1
     me.update()
     lap_smooth(ob, 0.5, 2)
+    lap_smooth(ob, 0.5, 3)
     print(f"WARDROBE:   hang {ob.name}: {moved}")
 
 
@@ -808,8 +809,10 @@ def build_outer(name, body, under, length_y, extra, lapel):
         front_open_cut(bm, 1.05 if lapel else 0.90, 1.50, 0.105 if lapel else 0.075, length_y, 0.07 if lapel else 0.01)
 
     ob = volume_to_shell(name, build, 0.008, 6, cuts)
-    if not lapel:  # the blazer keeps its structured, built shape
+    if not lapel:
         tighten(ob, body, 0.03, 0.55, weight=lambda c: smoothstep(length_y + 0.06, length_y + 0.24, gy(c)))
+    else:  # the blazer keeps a structured body; only the chest, shoulders and sleeves come in a little
+        tighten(ob, body, 0.03, 0.65, weight=lambda c: smoothstep(1.04, 1.2, gy(c)))
     fit_outside(ob, [(body, 0.025)] + [(u, 0.011) for u in under])
     hang(ob, 0.97)
     cinch(ob, body, lambda c: is_cuff(c) and gy(c) < 1.05, 0.013, falloff=0.07)
