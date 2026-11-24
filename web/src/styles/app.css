@@ -133,7 +133,11 @@ img { display: block; }
 
 /* phones: bottom sheet */
 @media (max-width: 767px) {
-  :root { --badge: 44px; --card-w: 92px; --gutter: 10px; }
+  :root { --badge: 40px; --card-w: 78px; --gutter: 10px; }
+  .product-card__meta { display: none; }
+  .product-rail { padding: 8px 10px 10px; }
+  .product-rail__head { margin-bottom: 6px; }
+  .shop-badge { gap: 4px; }
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--topbar-h) minmax(0, 1fr); padding-bottom: var(--sheet-peek); }
   .app.is-embed { grid-template-rows: 0 minmax(0, 1fr); }
   .topbar__event { display: none; }

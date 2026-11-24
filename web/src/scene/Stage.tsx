@@ -208,8 +208,9 @@ export function CameraRig() {
     if (shot === 'cam_fit') {
       // frame the whole avatar above the product rail: 3.5 m tall, 1.7 m wide window, centre at 0.42 m
       const tan = Math.tan(((camera as PerspectiveCamera).fov * Math.PI) / 360)
-      const dist = Math.max(1.75 / tan, 0.85 / (tan * aspect))
-      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + 0.42, ANCHORS.avatar_fit.z)
+      const phone = aspect < 0.8 // phones: overlays top and bottom, so a taller window
+      const dist = Math.max((phone ? 2.4 : 1.75) / tan, 0.85 / (tan * aspect))
+      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + (phone ? 0.45 : 0.42), ANCHORS.avatar_fit.z)
       st.pos.sub(ANCHORS.cam_fit_target).normalize().multiplyScalar(dist).add(st.aim)
     } else {
       if (shot === 'cam_close') {
