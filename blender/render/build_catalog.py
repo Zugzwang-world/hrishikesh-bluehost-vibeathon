@@ -156,14 +156,45 @@ def write_data(cat):
 
 
 # ---------- placeholders ----------
+# Pure Pillow (no numpy). Real Blender renders (render_products.py) overwrite the product cards under the
+# same names; SKUs listed in blender/render/rendered.json are never overwritten by this script, even with --force.
+import colorsys
+import math
+
 FONT = "/System/Library/Fonts/Avenir Next.ttc"
+FONTS = ROOT / "blender" / "render" / "fonts"
+TEX = PUB / "textures"
+MANIFEST = ROOT / "blender" / "render" / "rendered.json"
+
+# merchant wordmark fonts (Google Fonts, stored in blender/render/fonts) + case/tracking
+MFONT = {
+    "kaapi-club": dict(file="BowlbyOne.ttf", case="title", track=0.0),
+    "rao-and-sons": dict(file="DMSerifDisplay.ttf", case="title", track=0.0),
+    "indigo-loom": dict(file="TenorSans.ttf", case="upper", track=0.14),
+    "kerb": dict(file="Anton.ttf", case="upper", track=0.10),
+    "cap-theory": dict(file="ArchivoBlack.ttf", case="upper", track=0.04),
+    "second-hand": dict(file="SpaceMono-Bold.ttf", case="lower", track=0.0),
+    "lens-lane": dict(file="Syne.ttf", case="lower", track=0.0),
+}
+# wordmark colour override (Kerb's brand black would vanish on dark pages; its accent red reads on both)
+MARK_OVERRIDE = {"kerb": "#E63946"}
+# subtle pattern for each merchant banner
+BANNER_TEX = {"kaapi-club": "melange", "rao-and-sons": "check", "indigo-loom": "denim", "kerb": "corduroy",
+              "cap-theory": "corduroy", "second-hand": "stripe", "lens-lane": "melange"}
+SLOT_LABEL = {"top": "TOP", "outerwear": "OUTERWEAR", "bottom": "BOTTOM", "footwear": "FOOTWEAR",
+              "headwear": "HEADWEAR", "eyewear": "EYEWEAR", "watch": "WATCH", "neckwear": "NECKWEAR"}
 
 
 def font(size, bold=True):
+    """Body type: Poppins (Google Fonts, has the rupee sign). Falls back to Avenir Next."""
     try:
-        return ImageFont.truetype(FONT, size, index=(2 if bold else 0))
+        return ImageFont.truetype(str(FONTS / ("Poppins-SemiBold.ttf" if bold else "Poppins-Medium.ttf")), size)
     except Exception:
-        return ImageFont.load_default()
+        return ImageFont.truetype(FONT, size, index=(2 if bold else 0))
+
+
+def gfont(name, size):
+    return ImageFont.truetype(str(FONTS / name), size)
 
 
 def hex2rgb(h):
@@ -172,12 +203,38 @@ def hex2rgb(h):
 
 
 def lum(rgb):
-    r, g, b = [c / 255 for c in rgb]
+    def ch(c):
+        c = c / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = [ch(c) for c in rgb]
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    la, lb = lum(a), lum(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
 
 
 def mix(a, b, t):
     return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def lift(rgb, lo=0.17, hi=0.40):
+    """Move a colour's lightness until its luminance sits in [lo, hi]: readable on white AND near-black."""
+    h, l, s = colorsys.rgb_to_hls(*[c / 255 for c in rgb])
+    s = min(1.0, s * 1.12 + 0.02)
+    c = rgb
+    for _ in range(120):
+        c = tuple(int(round(v * 255)) for v in colorsys.hls_to_rgb(h, l, s))
+        L = lum(c)
+        if L < lo:
+            l += 0.01
+        elif L > hi:
+            l -= 0.01
+        else:
+            return c
+    return c
 
 
 def text_c(d, xy, s, f, fill):
@@ -185,132 +242,283 @@ def text_c(d, xy, s, f, fill):
     d.text((xy[0] - (bb[2] - bb[0]) / 2, xy[1] - (bb[3] - bb[1]) / 2 - bb[1]), s, font=f, fill=fill)
 
 
+def tracked_width(f, s, track_px):
+    return sum(f.getlength(c) for c in s) + track_px * (len(s) - 1)
+
+
+def draw_tracked(d, x, y, s, f, fill, track_px):
+    for c in s:
+        d.text((x, y), c, font=f, fill=fill)
+        x += f.getlength(c) + track_px
+
+
 def should_write(path: Path) -> bool:
     return FORCE or not path.exists()
 
 
+def rendered_skus():
+    try:
+        return set(json.loads(MANIFEST.read_text()))
+    except Exception:
+        return set()
+
+
+_tex = {}
+
+
+def tex(name):
+    if name not in _tex:
+        _tex[name] = Image.open(TEX / f"{name}.png").convert("L")
+    return _tex[name]
+
+
+def tiled(name, size):
+    t, w, h = tex(name), size[0], size[1]
+    out = Image.new("L", size)
+    for x in range(0, w, t.width):
+        for y in range(0, h, t.height):
+            out.paste(t, (x, y))
+    return out
+
+
+def rrect_mask(size, radius, scale=3):
+    big = Image.new("L", (size[0] * scale, size[1] * scale), 0)
+    ImageDraw.Draw(big).rounded_rectangle([0, 0, big.width - 1, big.height - 1], radius=radius * scale, fill=255)
+    return big.resize(size, Image.LANCZOS)
+
+
+def fabric_swatch(material, size=440, radius=44, stitch=True):
+    """A fabric swatch rendered from the real pattern masks, with a soft light falloff and a stitched edge."""
+    S = (size, size)
+    base, pc = hex2rgb(material["color"]), hex2rgb(material["patternColor"])
+    pat = material["pattern"]
+    rough, metal = material.get("roughness", 0.85), material.get("metalness", 0.0)
+    if pat in ("stripe", "check", "denim", "melange", "corduroy"):
+        img = Image.composite(Image.new("RGB", S, pc), Image.new("RGB", S, base), tiled(pat, S))
+    elif metal >= 0.5:
+        img = Image.new("RGB", S, base)
+        d = ImageDraw.Draw(img)
+        dark, light = mix(base, (0, 0, 0), 0.45), mix(base, (255, 255, 255), 0.55)
+        for x in range(size):
+            t = x / size
+            b = max(0, min(1, 0.25 + 0.75 * (0.5 + 0.5 * math.cos(2 * math.pi * (t * 1.35 + 0.08)))))
+            d.line([(x, 0), (x, size)], fill=mix(dark, light, b))
+        grain = tiled("corduroy", S).point(lambda v: v // 6)
+        img = Image.composite(Image.new("RGB", S, mix(base, (255, 255, 255), 0.18)), img, grain)
+    else:
+        # solid cloth: whisper of heather so it never reads as a flat fill
+        shade = tiled("melange", S)
+        img = Image.composite(Image.new("RGB", S, mix(base, (255, 255, 255), 0.05)),
+                              Image.new("RGB", S, mix(base, (0, 0, 0), 0.05)), shade)
+        if pat == "print" and material.get("printText"):
+            slug = "blr" if material["printText"].upper() == "BLR" else "ship-it"
+            pr = Image.open(TEX / f"print-{slug}.png").convert("RGBA")
+            w = int(size * 0.82)
+            pr = pr.resize((w, w // 2), Image.LANCZOS)
+            a = pr.split()[3].point(lambda v: int(v * 0.96))
+            layer = Image.new("RGB", pr.size, pc)
+            img.paste(layer, ((size - w) // 2, size // 2 - w // 4), a)
+        elif rough < 0.4:
+            # glossy: a soft diagonal sheen
+            sheen = Image.new("L", S, 0)
+            ImageDraw.Draw(sheen).polygon([(size * 0.1, 0), (size * 0.42, 0), (size * 0.12, size), (-size * 0.2, size)], fill=90)
+            sheen = sheen.filter(ImageFilter.GaussianBlur(26))
+            img.paste((255, 255, 255), (0, 0), sheen)
+    # light falloff from the top-left (radial gradient mask: 0 centre, 255 edge)
+    rad = Image.radial_gradient("L").resize((int(size * 1.9), int(size * 1.9)), Image.LANCZOS)
+    fall = rad.crop((int(size * 0.20), int(size * 0.14), int(size * 0.20) + size, int(size * 0.14) + size))
+    fall = fall.point(lambda v: int(v * 0.62))
+    img = Image.composite(Image.new("RGB", S, mix(base, (0, 0, 0), 0.55)), img, fall)
+    if stitch:
+        d = ImageDraw.Draw(img, "RGBA")
+        st = (255, 255, 255, 70) if lum(base) < 0.45 else (0, 0, 0, 55)
+        m = 22
+        for a in range(m + 14, size - m - 14, 14):
+            d.line([(a, m), (a + 7, m)], fill=st, width=2)
+            d.line([(a, size - m), (a + 7, size - m)], fill=st, width=2)
+            d.line([(m, a), (m, a + 7)], fill=st, width=2)
+            d.line([(size - m, a), (size - m, a + 7)], fill=st, width=2)
+    out = img.convert("RGBA")
+    out.putalpha(rrect_mask(S, radius))
+    return out
+
+
+def merchant_name_text(m):
+    cfg = MFONT[m["slug"]]
+    s = m["name"]
+    return s.upper() if cfg["case"] == "upper" else s.lower() if cfg["case"] == "lower" else s
+
+
 def product_placeholder(p, m):
+    if p["sku"] in rendered_skus():
+        return
     path = PUB / "products" / f"{p['sku']}.webp"
     if not should_write(path):
         return
     W, H = 800, 1000
     bg = hex2rgb(m["brandColor"])
-    img = Image.new("RGB", (W, H), bg)
-    d = ImageDraw.Draw(img)
-    # soft vertical gradient
-    for y in range(H):
-        d.line([(0, y), (W, y)], fill=mix(bg, (0, 0, 0), 0.35 * y / H))
-    fg = (255, 255, 255) if lum(bg) < 0.55 else (20, 20, 20)
     acc = hex2rgb(m["accentColor"])
-    col = hex2rgb(p["material"]["color"])
-    # swatch disc with shadow
-    sh = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(sh).ellipse([230, 300, 570, 640], fill=150)
-    sh = sh.filter(ImageFilter.GaussianBlur(24))
-    img.paste((0, 0, 0), (0, 14), sh)
+    fg = (255, 255, 255) if lum(bg) < 0.30 else (20, 20, 20)
+    # backdrop: soft vertical gradient + spotlight from above
+    top, bot = mix(bg, (255, 255, 255), 0.10), mix(bg, (0, 0, 0), 0.50)
+    grad = Image.linear_gradient("L").resize((W, H))
+    img = Image.composite(Image.new("RGB", (W, H), bot), Image.new("RGB", (W, H), top), grad)
+    rad = Image.radial_gradient("L").resize((W * 2, H * 2), Image.LANCZOS)
+    spot = rad.crop((W // 2, H, W // 2 + W, 2 * H)).point(lambda v: max(0, int(255 - v * 1.42))).point(lambda v: int(v * 0.30))
+    img.paste((255, 255, 255), (0, 0), spot)
+    # swatch with a floor shadow
+    size = 450
+    sx, sy = (W - size) // 2, 215
+    sw = fabric_swatch(p["material"], size)
+    shadow = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(shadow).rounded_rectangle([sx + 8, sy + 36, sx + size - 8, sy + size + 28], radius=50, fill=170)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(30))
+    img.paste((0, 0, 0), (0, 0), shadow)
+    img.paste(sw, (sx, sy), sw)
     d = ImageDraw.Draw(img)
-    d.ellipse([220, 280, 580, 640], fill=col, outline=acc, width=6)
-    if p["material"]["pattern"] != "solid":
-        pc = hex2rgb(p["material"]["patternColor"])
-        mask = Image.new("L", (W, H), 0)
-        ImageDraw.Draw(mask).ellipse([226, 286, 574, 634], fill=255)
-        layer = Image.new("RGB", (W, H), col)
-        ld = ImageDraw.Draw(layer)
-        pat = p["material"]["pattern"]
-        if pat in ("stripe", "corduroy"):
-            step = 28 if pat == "stripe" else 12
-            for y in range(280, 640, step):
-                ld.rectangle([220, y, 580, y + step // 2 - 2], fill=pc)
-        elif pat == "check":
-            for x in range(220, 580, 48):
-                ld.rectangle([x, 280, x + 18, 640], fill=pc)
-            for y in range(280, 640, 48):
-                ld.rectangle([220, y, 580, y + 18], fill=pc)
-        elif pat in ("denim", "melange"):
-            for i in range(-400, 400, 9):
-                ld.line([(220 + i, 640), (580 + i, 280)], fill=pc, width=3)
-        elif pat == "print" and p["material"]["printText"]:
-            text_c(ld, (400, 460), p["material"]["printText"], font(84), pc)
-        img.paste(layer, (0, 0), mask)
-        d = ImageDraw.Draw(img)
-    d.text((56, 52), m["name"].upper(), font=font(30), fill=acc)
-    d.text((56, 96), p["sku"], font=font(24, bold=False), fill=fg)
-    text_c(d, (400, 720), p["name"], font(48), fg)
-    text_c(d, (400, 784), p["colorName"], font(34, bold=False), fg)
-    text_c(d, (400, 880), f"₹{p['price']:,}", font(44), acc)
+    # merchant mark top-left, slot tag top-right
+    mf = gfont(MFONT[m["slug"]]["file"], 40)
+    d.text((56, 52), merchant_name_text(m), font=mf, fill=acc)
+    tag = SLOT_LABEL[p["slot"]]
+    tf = font(20)
+    tw = tracked_width(tf, tag, 3)
+    d.rounded_rectangle([W - 56 - tw - 36, 56, W - 56, 96], radius=20, outline=fg, width=2)
+    draw_tracked(d, W - 56 - tw - 18, 62, tag, tf, fg, 3)
+    d.text((56, 108), p["sku"], font=font(22, bold=False), fill=mix(fg, bg, 0.35))
+    # copy
+    nsz = 48
+    while nsz > 30 and d.textlength(p["name"], font=font(nsz)) > 660:
+        nsz -= 2
+    text_c(d, (W / 2, 748), p["name"], font(nsz), fg)
+    pat = p["material"]["pattern"]
+    sub = p["colorName"] if pat in ("solid", "print") else f"{p['colorName']}  ·  {pat}"
+    text_c(d, (W / 2, 808), sub, font(28, bold=False), mix(fg, bg, 0.25))
+    d.line([(W / 2 - 36, 862), (W / 2 + 36, 862)], fill=acc, width=3)
+    text_c(d, (W / 2, 920), f"₹{p['price']:,}", font(46), acc)
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path, "WEBP", quality=88)
 
 
-def merchant_assets(m):
+def mark_color(m):
+    base = hex2rgb(MARK_OVERRIDE.get(m["slug"], m["brandColor"]))
+    return lift(base)
+
+
+def merchant_wordmark(m, path):
+    cfg = MFONT[m["slug"]]
+    s = merchant_name_text(m)
+    size = 150
+    f = gfont(cfg["file"], size)
+    track = cfg["track"] * size
+    w = int(tracked_width(f, s, track)) + 60
+    asc, desc = f.getmetrics()
+    h = asc + desc + 50
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    draw_tracked(d, 30, 25, s, f, mark_color(m) + (255,), track)
+    bb = img.getbbox()
+    img = img.crop((max(0, bb[0] - 20), max(0, bb[1] - 20), min(w, bb[2] + 20), min(h, bb[3] + 20)))
+    img.save(path)
+
+
+def merchant_banner(m, products, path):
+    W, H = 1600, 600
     bg = hex2rgb(m["brandColor"])
     acc = hex2rgb(m["accentColor"])
+    fg = (255, 255, 255) if lum(bg) < 0.30 else (20, 20, 20)
+    # base: horizontal gradient from a lighter brand tone (left) to a deep one (right)
+    grad = Image.linear_gradient("L").rotate(90, expand=True).resize((W, H))  # black on the left -> white on the right
+    img = Image.composite(Image.new("RGB", (W, H), mix(bg, (0, 0, 0), 0.55)), Image.new("RGB", (W, H), mix(bg, (255, 255, 255), 0.08)), grad)
+    # fabric texture, very quiet
+    t = tiled(BANNER_TEX[m["slug"]], (W, H))
+    img = Image.blend(img, Image.composite(Image.new("RGB", (W, H), mix(bg, (255, 255, 255), 0.28)), img, t), 0.20)
+    # soft spotlight behind the swatches
+    rad = Image.radial_gradient("L").resize((1200, 900), Image.LANCZOS).point(lambda v: max(0, int(255 - v * 1.42))).point(lambda v: int(v * 0.26))
+    img.paste((255, 255, 255), (700, -150), rad)
+    d = ImageDraw.Draw(img)
+    # name, shrunk to fit
+    cfg = MFONT[m["slug"]]
+    name = merchant_name_text(m)
+    size = 150
+    while size > 50:
+        f = gfont(cfg["file"], size)
+        if tracked_width(f, name, cfg["track"] * size) <= 720:
+            break
+        size -= 4
+    asc, desc = f.getmetrics()
+    draw_tracked(d, 100, 150, name, f, fg, cfg["track"] * size)
+    d.line([(104, 150 + asc + desc + 34), (184, 150 + asc + desc + 34)], fill=acc, width=5)
+    d.text((100, 150 + asc + desc + 58), m["tagline"], font=font(36, bold=False), fill=mix(fg, bg, 0.12))
+    n = len(products)
+    d.text((100, 535), f"{n} PIECES  ·  TRY THEM ON THE STAGE", font=font(22), fill=acc)
+    # row of overlapping product swatches (real colours and patterns)
+    dia = 150 if n <= 6 else 130
+    x0, x1 = 880, 1500
+    step = min(dia * 0.78, (x1 - x0 - dia) / max(1, n - 1))
+    cy = 300
+    shadow = Image.new("L", (W, H), 0)
+    sd = ImageDraw.Draw(shadow)
+    items = []
+    for i, p in enumerate(products):
+        cx = x0 + dia / 2 + i * step
+        items.append((cx, p))
+        sd.ellipse([cx - dia / 2 + 4, cy - dia / 2 + 14, cx + dia / 2 - 4, cy + dia / 2 + 14], fill=150)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(14))
+    img.paste((0, 0, 0), (0, 0), shadow)
+    for cx, p in items:
+        sw = fabric_swatch(p["material"], 300, radius=150, stitch=False).resize((dia, dia), Image.LANCZOS)
+        ring = Image.new("RGBA", (dia + 8, dia + 8), (0, 0, 0, 0))
+        ImageDraw.Draw(ring).ellipse([0, 0, dia + 7, dia + 7], fill=(255, 255, 255, 235))
+        img.paste(ring, (int(cx - dia / 2 - 4), int(cy - dia / 2 - 4)), ring)
+        img.paste(sw, (int(cx - dia / 2), int(cy - dia / 2)), sw)
+    img.save(path, "JPEG", quality=88)
+
+
+def merchant_assets(m, products):
     logo = PUB / "merchants" / f"{m['slug']}.png"
     logo.parent.mkdir(parents=True, exist_ok=True)
     if should_write(logo):
-        f = font(120)
-        tmp = ImageDraw.Draw(Image.new("RGBA", (10, 10)))
-        bb = tmp.textbbox((0, 0), m["name"], font=f)
-        w, h = bb[2] - bb[0] + 40, bb[3] - bb[1] + 40
-        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-        # wordmark in brand colour unless too dark to read on dark pages; light brands use their colour
-        ImageDraw.Draw(img).text((20 - bb[0], 20 - bb[1]), m["name"], font=f, fill=bg + (255,))
-        img.save(logo)
+        merchant_wordmark(m, logo)
     banner = PUB / "merchants" / f"{m['slug']}-banner.jpg"
     if should_write(banner):
-        W, H = 1600, 600
-        img = Image.new("RGB", (W, H), bg)
-        d = ImageDraw.Draw(img)
-        for x in range(W):
-            d.line([(x, 0), (x, H)], fill=mix(bg, (0, 0, 0), 0.4 * x / W))
-        for i in range(6):
-            d.ellipse([1100 + i * 30, -200 + i * 40, 1700 + i * 30, 400 + i * 40], outline=acc, width=2)
-        fg = (255, 255, 255) if lum(bg) < 0.55 else (20, 20, 20)
-        d.text((100, 190), m["name"], font=font(120), fill=fg)
-        d.text((104, 350), m["tagline"], font=font(44, bold=False), fill=acc)
-        img.save(banner, "JPEG", quality=88)
+        merchant_banner(m, products, banner)
+
+
+def brand_logo(path):
+    """Product wordmark: type only, light text on transparent. Working name STAGE."""
+    f = gfont("Syne.ttf", 150)
+    s, track = "STAGE", 150 * 0.03
+    w = int(tracked_width(f, s, track)) + 80
+    asc, desc = f.getmetrics()
+    img = Image.new("RGBA", (w, asc + desc + 60), (0, 0, 0, 0))
+    draw_tracked(ImageDraw.Draw(img), 40, 30, s, f, (246, 243, 236, 255), track)
+    bb = img.getbbox()
+    img = img.crop((bb[0] - 24, bb[1] - 24, bb[2] + 24, bb[3] + 24))
+    img.save(path)
 
 
 def brand_assets():
     b = PUB / "brand"
     b.mkdir(parents=True, exist_ok=True)
-    ink, gold, plum = (14, 14, 20), (242, 193, 78), (91, 52, 140)
     if should_write(b / "logo.png"):
-        img = Image.new("RGBA", (800, 240), (0, 0, 0, 0))
-        d = ImageDraw.Draw(img)
-        d.ellipse([20, 40, 180, 200], outline=gold + (255,), width=14)
-        d.ellipse([70, 90, 130, 150], fill=gold + (255,))
-        d.text((220, 52), "STAGE", font=font(120), fill=(255, 255, 255, 255))
-        img.save(b / "logo.png")
-    if should_write(b / "hero.jpg"):
+        brand_logo(b / "logo.png")
+    # hero.jpg (Lane C) and persona.png (Lane A) belong to other lanes: placeholders only if missing, never forced.
+    ink, gold, plum = (14, 14, 20), (242, 193, 78), (91, 52, 140)
+    if not (b / "hero.jpg").exists():
         W, H = 1920, 1080
         img = Image.new("RGB", (W, H), ink)
         d = ImageDraw.Draw(img)
         for y in range(H):
             d.line([(0, y), (W, y)], fill=mix(plum, ink, min(1, y / (H * 0.8))))
-        cone = Image.new("L", (W, H), 0)
-        ImageDraw.Draw(cone).polygon([(900, 0), (1020, 0), (1300, 980), (620, 980)], fill=90)
-        cone = cone.filter(ImageFilter.GaussianBlur(40))
-        img.paste((255, 240, 210), (0, 0), cone)
-        d = ImageDraw.Draw(img)
-        d.ellipse([700, 930, 1220, 1010], fill=(60, 50, 90))
-        d.ellipse([900, 380, 1020, 500], fill=(150, 110, 85))  # head
-        d.rounded_rectangle([860, 510, 1060, 760], radius=40, fill=(58, 59, 63))  # blazer
-        d.rectangle([925, 515, 995, 700], fill=(244, 242, 238))  # tee
-        d.rounded_rectangle([870, 760, 1050, 940], radius=20, fill=(58, 58, 62))
-        d.rounded_rectangle([860, 935, 950, 965], radius=12, fill=(245, 245, 242))
-        d.rounded_rectangle([970, 935, 1060, 965], radius=12, fill=(245, 245, 242))
         d.text((120, 120), "HRISHIKESH", font=font(96), fill=(255, 255, 255))
         d.text((124, 240), "On stage at Bluehost, Bangalore", font=font(44, bold=False), fill=gold)
         img.save(b / "hero.jpg", "JPEG", quality=88)
-    if should_write(b / "persona.png"):
+    if not (b / "persona.png").exists():
         W, H = 1200, 1500
         img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         d = ImageDraw.Draw(img)
         d.ellipse([450, 180, 750, 480], fill=(150, 110, 85, 255))
-        d.pieslice([430, 150, 770, 420], 180, 360, fill=(30, 24, 22, 255))
         d.rounded_rectangle([340, 520, 860, 1100], radius=120, fill=(58, 59, 63, 255))
-        d.rectangle([540, 530, 660, 1000], fill=(244, 242, 238, 255))
         d.rounded_rectangle([370, 1080, 830, 1500], radius=60, fill=(58, 58, 62, 255))
         img.save(b / "persona.png")
 
@@ -320,11 +528,16 @@ def main():
     write_data(cat)
     if not ONLY_DATA:
         byslug = {m["slug"]: m for m in cat["merchants"]}
+        bymerchant = {}
         for p in cat["products"]:
+            bymerchant.setdefault(p["merchant"], []).append(p)
             product_placeholder(p, byslug[p["merchant"]])
         for m in cat["merchants"]:
-            merchant_assets(m)
+            merchant_assets(m, bymerchant[m["slug"]])
         brand_assets()
+        for m in cat["merchants"]:
+            mc = mark_color(m)
+            print(f"  {m['slug']}: wordmark contrast {contrast(mc, (255, 255, 255)):.1f} on white, {contrast(mc, (14, 14, 20)):.1f} on dark")
     print(f"catalog: {len(cat['merchants'])} merchants, {len(cat['products'])} products -> {PUB}")
 
 
