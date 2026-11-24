@@ -668,7 +668,7 @@ def build_top_tee(body, under):
     def build(bm):
         loft(bm, torso_rings(extra), 44)
         for side in (1, -1):
-            sleeve(bm, side, [(-0.02, 0.07, 0.07), (0.0, 0.074, 0.074), (0.12, 0.07, 0.07), (0.26, 0.066, 0.066)])
+            sleeve(bm, side, [(0.0, 0.062, 0.062), (0.03, 0.066, 0.066), (0.12, 0.066, 0.066), (0.26, 0.064, 0.064)])
 
     def cuts(bm):
         hem_cut(bm, 0.93)
