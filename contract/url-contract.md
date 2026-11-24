@@ -14,7 +14,7 @@ https://STAGE/?embed=1&host=HOST&try=SKU&look=SKU,SKU&event=keynote
 | embed | `1` hides the Stage's own header chrome for the Bluehost iframe. |
 | mode | `persona`: avatar on the stage in the default look, slow orbit, no UI. `locked` (with `look`): turntable of that look, no UI. |
 | cartPath | Overrides CART_PATH (default `/cart`), e.g. for hash routing. |
-| host | Origin where Add look to bag goes. Missing: use `DEFAULT_HOST` from web/src config. Neither: show the bag summary in place. |
+| host | Origin where Lock the look goes. Missing: use `DEFAULT_HOST` from web/src config. Neither: show the bag summary in place. |
 | try | One SKU to equip on load. |
 | look | Comma-separated SKUs to equip on load (applied before try). |
 | event | Preselects the occasion chip. `keynote` = On stage, Bluehost Bangalore. |
@@ -27,13 +27,13 @@ A normal link with `target="_parent"` (the Bluehost editor preview is itself an 
 HOST + CART_PATH + ?add=SKU,SKU,SKU&look=LOOK_TITLE
 ```
 
-## Product viewer
-
-`https://STAGE/product?sku=SKU&embed=1`: the single piece on an invisible mannequin, slow turntable (storefront drawers).
-
 - `add` is the comma-separated SKUs of the equipped look (required slots first, in slot order).
 - `look` is the look title, URL-encoded (encodeURIComponent).
 - Bonus: also `window.parent.postMessage({ type: "ensemble:add-look", skus, look }, "*")`.
+
+## Product viewer
+
+`https://STAGE/product?sku=SKU&embed=1`: the single piece on an invisible mannequin, slow turntable (storefront drawers).
 
 ## Bluehost side (built from the Part 2 prompts; reference only)
 
