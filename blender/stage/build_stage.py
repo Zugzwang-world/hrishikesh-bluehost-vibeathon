@@ -556,10 +556,10 @@ def build_fixtures():
     for x in (-6.0, -4.5, -3.0, -1.5, 0.0, 1.5, 3.0, 4.5, 6.0):
         key = next((k for k, v in spot_x.items() if v == x), None)
         if key:
-            lens = moving_head(p, (x, hang_y, TRUSS_Z), (0, 0, 0), cones, r1=0.7)
+            lens = moving_head(p, (x, hang_y, TRUSS_Z), (0, 0, 0), cones, r1=0.6)
             spots[key] = (lens, (0, 0, 0))
         elif x in wash:
-            moving_head(p, (x, hang_y, TRUSS_Z), wash[x], cones, r1=0.9)
+            moving_head(p, (x, hang_y, TRUSS_Z), wash[x], cones, r1=0.5)
         else:
             moving_head(p, (x, hang_y, TRUSS_Z), (x * 0.6, 0, 1.5), None)
     # back (upper) row: cool lenses, beams raking onto the deck toward the front edge
@@ -567,7 +567,7 @@ def build_fixtures():
     for x in (-6.0, -4.5, -3.0, -1.5, 0.0, 1.5, 3.0, 4.5, 6.0):
         tgt = (x * 0.55, 0.0, 1.0 + abs(x) * 0.2)
         if x in (-6.0, -3.0, 0.0, 3.0, 6.0):
-            moving_head(p, (x, by, BACK_Z), tgt, cones, r1=0.8, lens="fixture_lens_blue")
+            moving_head(p, (x, by, BACK_Z), tgt, cones, r1=0.45, lens="fixture_lens_blue")
         else:
             moving_head(p, (x, by, BACK_Z), tgt, None, lens="fixture_lens_blue")
     p.finish()
