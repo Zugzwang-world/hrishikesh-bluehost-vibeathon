@@ -200,3 +200,9 @@ img { display: block; }
   .app[data-mode='show'] .exp { grid-template-columns: 0px minmax(0, 1fr) 0px; column-gap: 0; }
   .app[data-mode='show'] .exp__col { opacity: 0; pointer-events: none; overflow: hidden; }
 }
+
+/* photoreal cutout caption */
+.cutout-caption { position: absolute; left: var(--gutter); bottom: var(--gutter); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-dim); opacity: 0.8; pointer-events: none; z-index: 3; }
+.cutout-caption--tiny { font-size: 9px; left: 10px; bottom: 8px; opacity: 0.6; }
+.restyling { position: absolute; left: 50%; top: var(--gutter); transform: translateX(-50%); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 12px; border-radius: var(--radius-pill); background: var(--glass-strong); border: 1px solid var(--line-strong); pointer-events: none; z-index: 3; }
+.restyling::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c-violet); margin-right: 8px; vertical-align: 1px; animation: rec 1s ease-in-out infinite; }

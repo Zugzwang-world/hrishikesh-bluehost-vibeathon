@@ -12,6 +12,7 @@ import { DRACO_PATH, useAssetExists } from './assets'
 import { garmentMaterial, printTexture } from './materials'
 import { PrimitiveBody, PrimitiveGarment } from './Primitives'
 import { markSettled, type AssetKey } from './ready'
+import { Cutout, useCutoutMode } from './Cutout'
 
 type MeshInfo = { slot: string; hides: string[]; shows: string[] }
 const MESHES = meshes.meshes as Record<string, MeshInfo>
@@ -248,11 +249,17 @@ export function Avatar() {
 
   const prim = <PrimitiveBody skin={skin} hair={hair} hidden={hidden} />
   const primWardrobe = <PrimitiveWardrobe items={items} />
+  // photoreal cutout (fal renders) when available; the toy figure is the fallback and avatar=toy
+  const cut = useCutoutMode()
+  useEffect(() => { live.cutout = cut === 'cutout' }, [cut])
   return (
-    <group ref={root} position={ANCHORS.avatar_fit.toArray()} name="avatar_root">
-      {hasAvatar ? <Boundary fallback={prim} asset="avatar"><Suspense fallback={prim}><GlbBody hidden={hidden} /></Suspense></Boundary> : prim}
-      {hasWardrobe ? <Boundary fallback={primWardrobe} asset="wardrobe"><Suspense fallback={primWardrobe}><GlbWardrobe items={items} /></Suspense></Boundary> : primWardrobe}
-    </group>
+    <>
+      <group ref={root} position={ANCHORS.avatar_fit.toArray()} name="avatar_root">
+        {cut === 'toy' && (hasAvatar ? <Boundary fallback={prim} asset="avatar"><Suspense fallback={prim}><GlbBody hidden={hidden} /></Suspense></Boundary> : prim)}
+        {cut === 'toy' && (hasWardrobe ? <Boundary fallback={primWardrobe} asset="wardrobe"><Suspense fallback={primWardrobe}><GlbWardrobe items={items} /></Suspense></Boundary> : primWardrobe)}
+      </group>
+      {cut === 'cutout' && <Boundary fallback={null}><Cutout /></Boundary>}
+    </>
   )
 }
 

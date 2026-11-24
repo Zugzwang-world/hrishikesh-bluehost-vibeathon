@@ -28,7 +28,7 @@ export const TALK_TITLE = 'SHOP-UNI-FY · Small Business AI Builder Tour · Beng
 export const SPEAKER = 'HRISHIKESH HUNDEKARI'
 
 // Live avatar root position (written by Avatar each frame, read by the IMAG camera).
-export const live = { avatar: new Vector3(0, 0, 1.6) }
+export const live = { avatar: new Vector3(0, 0, 1.6), cutout: false }
 
 // Shared mutable turntable state (no per-frame allocations, no React renders).
 export const turntable = { yaw: 0, vel: 0, dragging: false, lastInteract: 0, faceAt: -1e9 }

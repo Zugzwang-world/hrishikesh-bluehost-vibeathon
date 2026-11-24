@@ -238,7 +238,8 @@ export function CameraRig() {
       // portfolio hero: slow cinematic arc + slight dolly, head-to-toe framing, slightly low angle.
       // Works for a wide short frame (~16:6) and phones: distance fits 2.9 m of height and 1.5 m of width.
       const t = clock.elapsedTime
-      const a = Math.sin(t * 0.085) * 0.5 + 0.12
+      // a photo cutout stays convincing within about ±25° of the front
+      const a = live.cutout ? Math.sin(t * 0.085) * 0.38 : Math.sin(t * 0.085) * 0.5 + 0.12
       const aspect = size.width / Math.max(1, size.height)
       const pc = camera as PerspectiveCamera
       if (pc.fov !== 38) { pc.fov = 38; pc.updateProjectionMatrix() }

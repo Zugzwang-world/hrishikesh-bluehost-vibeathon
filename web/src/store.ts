@@ -29,6 +29,8 @@ type State = {
   check: StageCheckResult | null
   checkVisible: boolean
   sheetOpen: boolean
+  cutoutCaption: string | null
+  cutoutExact: boolean
   setCatalog: (c: Catalog) => void
   equip: (sku: string) => void
   clear: (slot: Slot) => void
@@ -60,6 +62,8 @@ export const useStore = create<State>((set, get) => ({
   check: null,
   checkVisible: false,
   sheetOpen: false,
+  cutoutCaption: null,
+  cutoutExact: true,
 
   setCatalog: c => {
     const look: Look = {}

@@ -15,5 +15,6 @@ export const PARAMS = {
   look: list(p.get('look')),
   event: p.get('event'),
   sku: p.get('sku')?.trim() || null,
+  avatar: p.get('avatar') === 'toy' ? 'toy' : 'auto',
   mode: (path === '/product' ? 'product' : m === 'persona' ? 'persona' : m === 'locked' ? 'locked' : 'experience') as AppMode,
 }

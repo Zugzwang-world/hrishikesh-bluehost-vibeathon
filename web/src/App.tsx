@@ -50,6 +50,20 @@ function ProductImage() {
   return p ? <img className="product-fallback" src={p.image} alt={p.name} /> : null
 }
 
+/** "AI render of Hrishikesh" caption and the Restyling… pill while the nearest render stands in. */
+function CutoutCaption({ tiny }: { tiny?: boolean }) {
+  const caption = useStore(s => s.cutoutCaption)
+  const exact = useStore(s => s.cutoutExact)
+  const mode = useStore(s => s.mode)
+  if (!caption) return null
+  return (
+    <>
+      <div className={'cutout-caption' + (tiny ? ' cutout-caption--tiny' : '')}>{caption}</div>
+      {!exact && !tiny && mode === 'fit' && <div className="restyling" role="status">Restyling…</div>}
+    </>
+  )
+}
+
 function Hero() {
   return <div className="hero-fallback"><img src="/brand/hero.jpg" alt="" /></div>
 }
@@ -93,7 +107,7 @@ export default function App() {
   if (PARAMS.mode === 'persona' || PARAMS.mode === 'locked') {
     return (
       <div className="app app--bare">
-        <main className="stage-area">{scene}</main>
+        <main className="stage-area">{scene}<CutoutCaption tiny /></main>
       </div>
     )
   }
@@ -123,6 +137,7 @@ export default function App() {
             <Controls webgl={three} />
             <StageCheckCard />
             {mode === 'show' && <div className="show-title" aria-hidden><span>Showtime</span></div>}
+            <CutoutCaption />
           </div>
           {three && <Loader ready={!!catalog && checked} />}
         </main>
