@@ -77,8 +77,48 @@ def mat(name, color=(0.02, 0.02, 0.02), rough=0.8, metal=0.0, emit=None,
     return m
 
 
+def deck_texture():
+    """512 px tile = 2 x 2 m of stage deck: two 2 x 1 m platforms, fine seams, faint scuffs."""
+    import numpy as np
+    n = 512
+    rng = np.random.default_rng(3)
+    base = 34.0 / 255.0
+    img = np.full((n, n), base, dtype=np.float32)
+    # low-frequency mottling + fine grain
+    lo = rng.normal(0, 1, (16, 16)).astype(np.float32)
+    lo = np.kron(lo, np.ones((n // 16, n // 16), dtype=np.float32))
+    k = np.ones(31, dtype=np.float32) / 31
+    lo = np.apply_along_axis(lambda r: np.convolve(r, k, mode="same"), 0, lo)
+    lo = np.apply_along_axis(lambda r: np.convolve(r, k, mode="same"), 1, lo)
+    img += lo * (3.0 / 255.0) + rng.normal(0, 1.2 / 255.0, (n, n)).astype(np.float32)
+    seam = 18.0 / 255.0
+    for t in (0, 1):                          # platform edges: tile border + mid line (2 x 1 m panels)
+        img[t, :] = seam
+        img[:, t] = seam
+        img[n // 2 + t - 1, :] = seam
+    img = np.clip(img, 0, 1)
+    rgba = np.ones((n, n, 4), dtype=np.float32)
+    rgba[..., 0] = img
+    rgba[..., 1] = img
+    rgba[..., 2] = np.clip(img * 1.04, 0, 1)
+    im = bpy.data.images.new("stage_deck_tex", n, n, alpha=False)
+    im.pixels.foreach_set(rgba.ravel())
+    im.update()
+    im.pack()
+    return im
+
+
 def build_materials():
-    mat("stage_deck", (0.016, 0.016, 0.018), rough=0.72)
+    m = mat("stage_deck", (1.0, 1.0, 1.0), rough=0.72)
+    try:
+        nt = m.node_tree
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = deck_texture()
+        nt.links.new(tex.outputs["Color"], nt.nodes.get("Principled BSDF").inputs["Base Color"])
+    except Exception as e:   # fall back to a flat colour
+        print("DECK TEXTURE FAILED", e)
+        m.node_tree.nodes.get("Principled BSDF").inputs["Base Color"].default_value = (0.016, 0.016, 0.018, 1)
+    mat("stage_deck_edge", (0.012, 0.012, 0.014), rough=0.72)
     mat("stage_fascia", (0.006, 0.006, 0.007), rough=0.45)
     mat("floor_house", (0.016, 0.016, 0.018), rough=0.92)
     mat("drape", (0.004, 0.004, 0.005), rough=1.0)
@@ -281,8 +321,11 @@ TRUSS_W = 0.3
 
 def build_riser():
     p = Part("riser")
-    # deck top slab (top at y = 0)
-    p.box_minmax((-RISER_X, -0.04, RISER_Z0), (RISER_X, 0.0, RISER_Z1), "stage_deck")
+    # deck slab just under y = 0, then the textured deck surface quad at y = 0 (UV: 1 unit = 2 m)
+    p.box_minmax((-RISER_X, -0.04, RISER_Z0), (RISER_X, -0.002, RISER_Z1), "stage_deck_edge")
+    x0, x1, z0, z1 = -RISER_X, RISER_X, RISER_Z0, RISER_Z1
+    p.quad([(x0, 0.0, z1), (x1, 0.0, z1), (x1, 0.0, z0), (x0, 0.0, z0)], "stage_deck",
+           uvs=[(x0 / 2, -z1 / 2), (x1 / 2, -z1 / 2), (x1 / 2, -z0 / 2), (x0 / 2, -z0 / 2)])
     # body / fascia
     p.box_minmax((-RISER_X + 0.02, FLOOR_Y, RISER_Z0 + 0.02), (RISER_X - 0.02, -0.04, RISER_Z1 - 0.02), "stage_fascia")
     # deck board seams: subtle raised lines would cost tris; instead a thin lip on the front edge
@@ -634,6 +677,8 @@ def export():
         export_draco_position_quantization=14,
         export_draco_normal_quantization=10,
         export_draco_texcoord_quantization=12,
+        export_image_format="JPEG",
+        export_image_quality=88,
     )
     print("EXPORTED", OUT, os.path.getsize(OUT))
 
