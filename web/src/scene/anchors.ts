@@ -26,6 +26,9 @@ export const LED_WALL_COLOR = '#1b3fd6'
 export const TALK_TITLE = 'Shipping with AI · Bluehost Bangalore'
 export const SPEAKER = 'HRISHIKESH'
 
+// Live avatar root position (written by Avatar each frame, read by the IMAG camera).
+export const live = { avatar: new Vector3(0, 0, 1.6) }
+
 // Shared mutable turntable state (no per-frame allocations, no React renders).
 export const turntable = { yaw: 0, vel: 0, dragging: false, lastInteract: 0, faceAt: -1e9 }
 

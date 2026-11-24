@@ -6,7 +6,7 @@ import meshes from '../contract/meshes.json'
 import { SLOTS } from '../config'
 import type { Product } from '../api/types'
 import { productBySku, useStore } from '../store'
-import { ANCHORS, clamp01, easeInOutCubic, turntable } from './anchors'
+import { ANCHORS, clamp01, easeInOutCubic, live, turntable } from './anchors'
 import { DRACO_PATH, useAssetExists } from './assets'
 import { garmentMaterial, printTexture } from './materials'
 import { PrimitiveBody, PrimitiveGarment } from './Primitives'
@@ -224,6 +224,7 @@ export function Avatar() {
       }
     }
     g.rotation.y = turntable.yaw
+    live.avatar.copy(g.position)
   })
 
   const prim = <PrimitiveBody skin={skin} hair={hair} hidden={hidden} />

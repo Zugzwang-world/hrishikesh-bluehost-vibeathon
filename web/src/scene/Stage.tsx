@@ -1,13 +1,13 @@
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import {
   AdditiveBlending, Color, DirectionalLight, FrontSide, HemisphereLight, AmbientLight, Mesh, MeshBasicMaterial,
-  MeshStandardMaterial, Object3D, PerspectiveCamera, Quaternion, SpotLight, Vector3, type Material,
+  MeshStandardMaterial, Object3D, PerspectiveCamera, Quaternion, SpotLight, Vector3, WebGLRenderTarget, type Material,
 } from 'three'
 import meshes from '../contract/meshes.json'
 import { useStore } from '../store'
-import { ANCHORS, clamp01, easeInOutCubic, type AnchorName } from './anchors'
+import { ANCHORS, clamp01, easeInOutCubic, live, type AnchorName } from './anchors'
 import { DRACO_PATH } from './assets'
 import { ledTexture, ledTextureGltf } from './ledTexture'
 
@@ -92,9 +92,39 @@ export function PrimitiveStage() {
   )
 }
 
-/** stage.glb: copies empties into ANCHORS, wires led_wall / led_strip / center_mark / light_cone materials. */
+/** IMAG: side screens (material led_wall_side) show a live close-up of the avatar, rendered every other frame. */
+function useImag(screens: Mesh[], mats: MeshStandardMaterial[]) {
+  const gl = useThree(s => s.gl)
+  const scene = useThree(s => s.scene)
+  const rt = useMemo(() => {
+    const r = new WebGLRenderTarget(640, 360)
+    r.texture.repeat.set(1, -1); r.texture.offset.set(0, 1) // render targets are bottom-up; glTF UVs are top-down
+    return r
+  }, [])
+  const cam = useMemo(() => new PerspectiveCamera(24, 16 / 9, 0.1, 60), [])
+  const frame = useRef(0)
+  useLayoutEffect(() => {
+    for (const m of mats) { m.map = rt.texture; m.emissiveMap = rt.texture; m.emissive.set('#ffffff'); m.color.set('#000000'); m.emissiveIntensity = 1; m.toneMapped = false; m.needsUpdate = true }
+  }, [mats, rt])
+  useEffect(() => () => rt.dispose(), [rt])
+  useFrame(() => {
+    if (!screens.length || (frame.current++ & 1)) return
+    const a = live.avatar
+    cam.position.set(a.x + 0.3, a.y + 1.5, a.z + 2.6)
+    cam.lookAt(a.x, a.y + 1.3, a.z)
+    for (const s of screens) s.visible = false
+    const prev = gl.getRenderTarget()
+    gl.setRenderTarget(rt)
+    gl.render(scene, cam)
+    gl.setRenderTarget(prev)
+    for (const s of screens) s.visible = true
+  })
+}
+
+/** stage.glb: copies empties into ANCHORS, wires led_wall / led_wall_side / led_strip / center_mark / light_cone materials. */
 export function GlbStage() {
   const gltf = useGLTF(meshes.files.stage, DRACO_PATH)
+  const imag = useMemo(() => ({ screens: [] as Mesh[], mats: [] as MeshStandardMaterial[] }), [gltf])
   const mats = useMemo<FxMats>(() => {
     const out: FxMats = { led: [], strip: [], cone: [], mark: [] }
     gltf.scene.updateMatrixWorld(true)
@@ -108,6 +138,7 @@ export function GlbStage() {
       const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       for (const mm of list) {
         const m = mm as MeshStandardMaterial
+        if ((m.name || '').startsWith('led_wall_side')) { if (!imag.screens.includes(mesh)) imag.screens.push(mesh); if (!imag.mats.includes(m)) imag.mats.push(m); continue }
         if (seen.has(m)) continue
         seen.add(m)
         const n = m.name || ''
@@ -118,8 +149,9 @@ export function GlbStage() {
       }
     })
     return out
-  }, [gltf])
+  }, [gltf, imag])
   useFxMaterials(mats)
+  useImag(imag.screens, imag.mats)
   return <primitive object={gltf.scene} />
 }
 
@@ -213,6 +245,10 @@ export function CameraRig() {
       st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + (phone ? 0.45 : 0.42), ANCHORS.avatar_fit.z)
       st.pos.sub(ANCHORS.cam_fit_target).normalize().multiplyScalar(dist).add(st.aim)
     } else {
+      if (shot === 'cam_wide' && aspect >= 1.1 && aspect < 1.7) {
+        // keep the IMAG side screens in the wide shot on narrower windows
+        const f = Math.min(1.3, 1.7 / aspect); st.pos.sub(st.aim).multiplyScalar(f).add(st.aim)
+      }
       if (shot === 'cam_close') {
         // keep the whole upper body in frame (judge the outfit, not the nose)
         const d = st.pos.distanceTo(st.aim)
