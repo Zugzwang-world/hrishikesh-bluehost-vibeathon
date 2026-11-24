@@ -26,28 +26,56 @@ for o in list(bpy.context.scene.objects):
     if o.name.startswith("hair_capped"):
         bpy.data.objects.remove(o)
 
-# Dress the portrait in Lane B's tee when wardrobe.glb is present (read-only use of their asset).
-WARDROBE = os.path.join(ROOT, "web", "public", "models", "wardrobe.glb")
-TOP = os.environ.get("PERSONA_TOP", "top_tee")
-if TOP and os.path.exists(WARDROBE):
-    before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=WARDROBE)
+# Dress the portrait in a simple crew-neck tee made here from the body's own region cuts
+# (torso + upper arms, offset outward), so the portrait never depends on another lane's asset.
+import bmesh  # noqa: E402
+
+if os.environ.get("PERSONA_TOP", "tee") == "tee":
+    parts = [o for o in bpy.data.objects
+             if o.name.split(".")[0] in ("body_neck", "body_torso", "body_upperarm_L", "body_upperarm_R",
+                                         "body_hips")]
+    bm = bmesh.new()
+    for o in parts:
+        me = o.data.copy()
+        me.transform(o.matrix_world)
+        bm.from_mesh(me)
+        bpy.data.meshes.remove(me)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=6e-4)
+    # drop the lower hips so the hem sits at ~0.93 (Blender Z is up)
+    kill = [f for f in bm.faces if f.calc_center_median().z < 0.93]
+    bmesh.ops.delete(bm, geom=kill, context="FACES")
+    # planar crew neckline
+    def near_neck(co):
+        return math.hypot(co.x, -co.y + 0.01) < 0.16
+
+    nf = [f for f in bm.faces if near_neck(f.calc_center_median())]
+    ne = list({e for f in nf for e in f.edges})
+    nv = list({v for f in nf for v in f.verts})
+    bmesh.ops.bisect_plane(bm, geom=nv + ne + nf, dist=1e-6, plane_co=(0, 0, 1.455), plane_no=(0, 0, 1))
+    kill = [f for f in bm.faces if near_neck(f.calc_center_median()) and f.calc_center_median().z > 1.455]
+    bmesh.ops.delete(bm, geom=kill, context="FACES")
+    bm.normal_update()
+    for v in bm.verts:
+        v.co += v.normal * 0.010
+    tee_me = bpy.data.meshes.new("persona_tee")
+    bm.to_mesh(tee_me)
+    bm.free()
+    tee_me.shade_smooth()
+    tee = bpy.data.objects.new("persona_tee", tee_me)
+    sc0 = bpy.context.scene
+    sc0.collection.objects.link(tee)
+    sm = tee.modifiers.new("smooth", "SMOOTH")
+    sm.factor, sm.iterations = 0.5, 6
+    so = tee.modifiers.new("solid", "SOLIDIFY")
+    so.thickness, so.offset = 0.004, 1.0
     tee_mat = bpy.data.materials.new("persona_top")
-    tee_mat.use_nodes = True
-    tb_ = tee_mat.node_tree.nodes.get("Principled BSDF")
-    tb_.inputs["Base Color"].default_value = (0.024, 0.026, 0.032, 1.0)
-    tb_.inputs["Roughness"].default_value = 0.85
-    for o in set(bpy.data.objects) - before:
-        if o.type != "MESH":
-            continue
-        if o.name.split(".")[0] != TOP:
-            bpy.data.objects.remove(o)
-        else:
-            o.data.materials.clear()
-            o.data.materials.append(tee_mat)
-    for o in list(bpy.data.objects):
-        if o.name.split(".")[0] in ("body_torso", "body_upperarm_L", "body_upperarm_R"):
-            bpy.data.objects.remove(o)
+    tb_ = tee_mat.node_tree.nodes.get("Principled BSDF") if tee_mat.node_tree else None
+    if tb_ is None:
+        tee_mat.use_nodes = True
+        tb_ = tee_mat.node_tree.nodes.get("Principled BSDF")
+    tb_.inputs["Base Color"].default_value = (0.022, 0.024, 0.030, 1.0)
+    tb_.inputs["Roughness"].default_value = 0.9
+    tee_me.materials.append(tee_mat)
 
 sc = bpy.context.scene
 for eng in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT", "CYCLES"):
