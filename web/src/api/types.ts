@@ -4,16 +4,24 @@ import type { Slot } from '../config'
 export type Merchant = {
   slug: string; name: string; code: string; tagline: string; category: string; story: string
   brandColor: string; accentColor: string; logo: string; banner: string
+  instagram: string // e.g. "@kaapi.thrift"
 }
 export type Pattern = 'solid' | 'stripe' | 'check' | 'denim' | 'melange' | 'corduroy' | 'print'
 export type Material = {
   color: string; pattern: Pattern; patternColor: string; printText: string | null; roughness: number; metalness: number
+  soleColor?: string // sneakers with a contrasting sole (KK-002 gum)
 }
 export type Product = {
   sku: string; merchant: string; name: string; slot: Slot; mesh: string; price: number; colorName: string
   description: string; tags: string[]; material: Material; image: string
+  category: string   // thrift category label: Shirt, Jeans, Cap...
+  size: string; condition: string; era: string // "M", "9/10", "1990s"
+  oneOfOne: boolean  // always true; demo mode keeps pieces available after orders
 }
-export type Catalog = { version: number; currency: 'INR'; merchants: Merchant[]; products: Product[] }
+export type Catalog = {
+  version: number; currency: 'INR'; merchants: Merchant[]; products: Product[]
+  name?: string; demoMode?: boolean; defaultLook?: string[]; looks?: { title: string; skus: string[] }[]
+}
 
 /** slot -> SKU (null or missing = empty slot) */
 export type Look = Partial<Record<Slot, string | null>>

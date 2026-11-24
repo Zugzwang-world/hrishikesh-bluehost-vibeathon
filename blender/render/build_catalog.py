@@ -21,95 +21,84 @@ ONLY_DATA = "--data-only" in sys.argv
 FORCE = "--force" in sys.argv  # overwrite existing images (default: only create missing ones)
 
 M = [
-    dict(slug="kaapi-club", name="Kaapi Club", code="KC", tagline="Bengaluru café streetwear",
-         category="Tees and shirts", brandColor="#4A2C1D", accentColor="#E9C46A",
-         story="Kaapi Club started as a tee drop for the regulars of a Malleshwaram filter-coffee counter. "
-               "Every piece is cut for long Bengaluru days that start with decoction and end on a rooftop."),
-    dict(slug="rao-and-sons", name="Rao & Sons", code="RS", tagline="Third-generation tailors",
-         category="Blazers and overshirts", brandColor="#1F2A44", accentColor="#C9A227",
-         story="Three generations of the Rao family have cut cloth on the same Chickpet street since 1962. "
-               "Their blazers keep the old-school canvas structure but drop the stiffness for modern stages."),
-    dict(slug="indigo-loom", name="Indigo Loom", code="IL", tagline="Denim and trousers, wide-leg to slim",
-         category="Denim and trousers", brandColor="#22346B", accentColor="#E8E1D3",
-         story="Indigo Loom works with small mills to weave denim and trouser cloth that softens with every wear. "
-               "From roomy wide-legs to sharp slims, every pair is hemmed to Indian heights."),
-    dict(slug="kerb", name="Kerb", code="KB", tagline="Sneakers and loafers for city miles",
-         category="Footwear", brandColor="#111111", accentColor="#E63946",
-         story="Kerb makes clean sneakers and soft loafers built to survive Bengaluru pavements. "
-               "Cushioned soles, honest leather and nothing you have to break in."),
-    dict(slug="cap-theory", name="Cap Theory", code="CT", tagline="Caps, beanies and bucket hats",
-         category="Headwear", brandColor="#B3122B", accentColor="#F4EDE4",
-         story="Cap Theory believes the right hat finishes a look and starts a conversation. "
-               "Small-batch caps, beanies and bucket hats, stitched in Tiruppur."),
-    dict(slug="second-hand", name="Second Hand", code="SH", tagline="Watches with a story",
-         category="Watches", brandColor="#2F3E36", accentColor="#D9C8A0",
-         story="Second Hand designs everyday watches inspired by the dials our grandparents wore. "
-               "Analog and retro digital pieces that keep time and good taste."),
-    dict(slug="lens-lane", name="Lens Lane", code="LL", tagline="Eyewear and chains",
-         category="Eyewear and accessories", brandColor="#4B3F72", accentColor="#F2B880",
-         story="Lens Lane designs frames and chains that sit somewhere between studio and street. "
-               "Lightweight acetate, honest metal and shapes that suit Indian faces."),
+    dict(slug="kaapi-thrift", name="Kaapi Thrift", code="KT", instagram="@kaapi.thrift",
+         tagline="Pre-loved shirts, tees and overshirts from Bengaluru", category="Shirts, tees and overshirts",
+         brandColor="#4A2C1D", accentColor="#F2E3C6",
+         story="Kaapi Thrift began as a weekend rack outside a Malleshwaram filter-coffee counter, sold one DM at a time. "
+               "Every shirt is washed, pressed and tagged 1 of 1 before it goes live."),
+    dict(slug="stonewash-society", name="Stonewash Society", code="SW", instagram="@stonewash.society",
+         tagline="Vintage denim and baggy cargos", category="Denim and trousers",
+         brandColor="#2B3A67", accentColor="#9FB4D9",
+         story="Stonewash Society hunts vintage denim and baggy cargos across Bengaluru's flea markets and mill-outlet bins. "
+               "Each pair is measured, mended where it needs it and shot on a real body."),
+    dict(slug="kerbside-kicks", name="Kerbside Kicks", code="KK", instagram="@kerbside.kicks",
+         tagline="Pre-loved sneakers and loafers, deep-cleaned", category="Sneakers and loafers",
+         brandColor="#1E1E1E", accentColor="#E8FF3A",
+         story="Kerbside Kicks rescues sneakers and loafers with plenty of miles left in them. "
+               "Every pair is deep-cleaned, deodorised and re-laced before it ships."),
+    dict(slug="lids-and-lenses", name="Lids & Lenses", code="LL", instagram="@lidsandlenses",
+         tagline="Caps, hats and vintage frames", category="Headwear and eyewear",
+         brandColor="#B3261E", accentColor="#FFD9D2",
+         story="Lids & Lenses started with a shoebox of vintage frames from a closing optician on Commercial Street. "
+               "Today it pairs them with washed caps, beanies and bucket hats, one piece at a time."),
+    dict(slug="second-hand", name="Second Hand", code="SH", instagram="@secondhand.watches",
+         tagline="Vintage watches and chains", category="Watches and chains",
+         brandColor="#1F3D2B", accentColor="#D4AF37",
+         story="Second Hand restores vintage watches and chains that have already lived one life. "
+               "Each piece is serviced, polished and sold with its story."),
 ]
 
 
-def mat(color, pattern="solid", patternColor=None, printText=None, roughness=0.85, metalness=0.0):
-    return dict(color=color, pattern=pattern, patternColor=patternColor or color, printText=printText,
-                roughness=roughness, metalness=metalness)
+def mat(color, pattern="solid", patternColor=None, printText=None, roughness=0.85, metalness=0.0, soleColor=None):
+    m = dict(color=color, pattern=pattern, patternColor=patternColor or color, printText=printText,
+             roughness=roughness, metalness=metalness)
+    if soleColor:
+        m["soleColor"] = soleColor
+    return m
 
 
-# sku, merchant, name, slot, mesh, price, colorName, description, tags, material
+def metal(color):
+    return mat(color, roughness=0.25, metalness=1.0)
+
+
+# sku, merchant, name, category, mesh, price, size, condition, era, colorName, description, tags, material
 P = [
-    # Kaapi Club: tees and shirts
-    ("KC-001", "kaapi-club", "Everyday Tee", "top", "top_tee", 799, "White", "Heavyweight cotton crew tee with a clean, structured neckline.", ["white", "basic", "classic", "minimal", "stage"], mat("#F4F2EE")),
-    ("KC-002", "kaapi-club", "Everyday Tee", "top", "top_tee", 799, "Black", "Heavyweight cotton crew tee in deep black.", ["black", "basic", "all-black", "minimal"], mat("#1B1B1D")),
-    ("KC-003", "kaapi-club", "Decoction Oversized Tee", "top", "top_oversized", 1199, "Coffee Brown", "Dropped-shoulder oversized tee in a rich coffee tone.", ["brown", "oversized", "baggy", "streetwear", "casual"], mat("#5B3A29")),
-    ("KC-004", "kaapi-club", "Ship It Oversized Tee", "top", "top_oversized", 1299, "Off-White", "Oversized tee with a bold SHIP IT chest print for builders.", ["white", "print", "graphic", "oversized", "tech", "startup"], mat("#EFEAE0", "print", "#C0392B", "SHIP IT")),
-    ("KC-005", "kaapi-club", "BLR Graphic Tee", "top", "top_tee", 999, "Black", "Black tee with a golden BLR city print.", ["black", "print", "graphic", "bangalore", "bengaluru", "city"], mat("#161616", "print", "#F2C14E", "BLR")),
-    ("KC-006", "kaapi-club", "Oxford Shirt", "top", "top_shirt", 1899, "White", "Crisp white cotton Oxford with a button-down collar.", ["white", "shirt", "formal", "smart", "classic", "stage"], mat("#FAFAF7")),
-    ("KC-007", "kaapi-club", "Linen Shirt", "top", "top_shirt", 2199, "Sky Blue", "Breathable linen shirt in a soft sky blue.", ["blue", "shirt", "linen", "summer", "smart-casual"], mat("#A9C7E3")),
-    ("KC-008", "kaapi-club", "Breton Stripe Tee", "top", "top_tee", 1099, "Navy Stripe", "Off-white tee with fine navy Breton stripes.", ["stripe", "navy", "white", "casual", "classic"], mat("#F3F1EA", "stripe", "#1F2A44")),
-    ("KC-009", "kaapi-club", "Melange Tee", "top", "top_tee", 899, "Grey Melange", "Soft heather-grey everyday tee.", ["grey", "melange", "basic", "casual"], mat("#9A9A9C", "melange", "#C9C9CB")),
-    ("KC-010", "kaapi-club", "Festive Mandarin Shirt", "top", "top_shirt", 2499, "Marigold", "Mandarin-collar shirt in a glowing marigold for festive evenings.", ["yellow", "marigold", "festive", "ethnic", "diwali", "celebration", "bangalore"], mat("#D98E04", roughness=0.55)),
-    # Rao & Sons: blazers and overshirts
-    ("RS-001", "rao-and-sons", "Stage Blazer", "outerwear", "outer_blazer", 6999, "Charcoal", "Soft-structured single-breasted blazer that reads sharp under stage lights.", ["charcoal", "grey", "blazer", "formal", "stage", "keynote", "smart"], mat("#3A3B3F", roughness=0.75)),
-    ("RS-002", "rao-and-sons", "Midnight Blazer", "outerwear", "outer_blazer", 7499, "Black", "Black wool-blend blazer with satin-finish buttons.", ["black", "blazer", "all-black", "formal", "evening"], mat("#141416", roughness=0.7)),
-    ("RS-003", "rao-and-sons", "Bandhgala-Cut Blazer", "outerwear", "outer_blazer", 8999, "Royal Maroon", "Maroon blazer with a bandhgala-inspired cut for festive nights.", ["maroon", "red", "festive", "ethnic", "wedding", "blazer", "bangalore"], mat("#6E1423", roughness=0.6)),
-    ("RS-004", "rao-and-sons", "Check Overshirt", "outerwear", "outer_overshirt", 3499, "Olive Check", "Brushed cotton overshirt in an olive check.", ["olive", "green", "check", "overshirt", "casual", "layer"], mat("#5B6B3A", "check", "#2E3520")),
-    ("RS-005", "rao-and-sons", "Corduroy Overshirt", "outerwear", "outer_overshirt", 3999, "Rust", "Mid-wale corduroy overshirt in warm rust.", ["rust", "orange", "brown", "corduroy", "overshirt", "casual"], mat("#A0522D", "corduroy", "#7E3F22")),
-    # Indigo Loom: denim and trousers
-    ("IL-001", "indigo-loom", "Baggy Wide-Leg Trousers", "bottom", "bottom_wide", 2799, "Stone", "Relaxed, baggy wide-leg trousers in a stone twill.", ["beige", "stone", "baggy", "wide-leg", "relaxed", "streetwear"], mat("#C8BBA3")),
-    ("IL-002", "indigo-loom", "Wide-Leg Denim", "bottom", "bottom_wide", 3299, "Mid Indigo", "Wide-leg jeans in a mid-wash indigo denim.", ["blue", "denim", "jeans", "wide-leg", "baggy", "casual"], mat("#2C3E66", "denim", "#4A5F8C")),
-    ("IL-003", "indigo-loom", "Slim Selvedge Denim", "bottom", "bottom_slim", 3499, "Raw Indigo", "Slim-fit raw selvedge jeans that fade with you.", ["blue", "denim", "jeans", "slim", "classic"], mat("#1E2A47", "denim", "#33456E")),
-    ("IL-004", "indigo-loom", "Slim Chinos", "bottom", "bottom_slim", 2299, "Black", "Slim stretch chinos in jet black.", ["black", "chinos", "slim", "all-black", "smart"], mat("#18181A")),
-    ("IL-005", "indigo-loom", "Pleated Wide Trousers", "bottom", "bottom_wide", 3199, "Charcoal", "Single-pleat wide trousers with a sharp drape.", ["charcoal", "grey", "wide-leg", "formal", "stage", "smart"], mat("#3A3A3E", roughness=0.8)),
-    ("IL-006", "indigo-loom", "Slim Chinos", "bottom", "bottom_slim", 2199, "Khaki", "Slim stretch chinos in classic khaki.", ["khaki", "beige", "chinos", "slim", "smart-casual"], mat("#B59F78")),
-    ("IL-007", "indigo-loom", "Corduroy Wide Trousers", "bottom", "bottom_wide", 2999, "Cream", "Wide corduroy trousers in a festive cream.", ["cream", "white", "corduroy", "wide-leg", "festive"], mat("#E8DCC4", "corduroy", "#CFC1A5")),
-    # Kerb: footwear
-    ("KB-001", "kerb", "Court Sneaker", "footwear", "shoe_sneaker", 3999, "White", "Clean leather court sneaker in all white.", ["white", "sneakers", "minimal", "classic", "stage"], mat("#F5F5F2", roughness=0.6)),
-    ("KB-002", "kerb", "Court Sneaker", "footwear", "shoe_sneaker", 3999, "Black", "Leather court sneaker in tonal black.", ["black", "sneakers", "all-black", "minimal"], mat("#1A1A1A", roughness=0.6)),
-    ("KB-003", "kerb", "City Runner", "footwear", "shoe_sneaker", 4499, "Signal Red", "Lightweight runner in a loud signal red.", ["red", "sneakers", "sporty", "bold"], mat("#C62828", roughness=0.65)),
-    ("KB-004", "kerb", "Penny Loafer", "footwear", "shoe_loafer", 4999, "Tan", "Soft tan leather penny loafer.", ["tan", "brown", "loafers", "smart", "festive", "formal"], mat("#8B5A2B", roughness=0.45)),
-    ("KB-005", "kerb", "Penny Loafer", "footwear", "shoe_loafer", 4999, "Black", "Polished black leather penny loafer.", ["black", "loafers", "formal", "all-black", "evening"], mat("#121212", roughness=0.3)),
-    # Cap Theory: headwear
-    ("CT-001", "cap-theory", "Six-Panel Cap", "headwear", "head_cap", 899, "Red", "Structured six-panel cap in a bright red twill.", ["red", "cap", "baseball", "bold", "streetwear"], mat("#C8102E")),
-    ("CT-002", "cap-theory", "Six-Panel Cap", "headwear", "head_cap", 899, "Black", "Structured six-panel cap in black twill.", ["black", "cap", "baseball", "all-black"], mat("#151515")),
-    ("CT-003", "cap-theory", "BLR Logo Cap", "headwear", "head_cap", 999, "Cream", "Cream cap with an embroidered navy BLR.", ["cream", "white", "cap", "print", "bangalore", "bengaluru"], mat("#EDE6D6", "print", "#1F3A5F", "BLR")),
-    ("CT-004", "cap-theory", "Rib Beanie", "headwear", "head_beanie", 749, "Charcoal", "Chunky rib-knit beanie in charcoal.", ["charcoal", "grey", "beanie", "winter", "casual"], mat("#3C3C3C", roughness=0.95)),
-    ("CT-005", "cap-theory", "Rib Beanie", "headwear", "head_beanie", 749, "Mustard", "Chunky rib-knit beanie in mustard.", ["yellow", "mustard", "beanie", "bold"], mat("#D4A017", roughness=0.95)),
-    ("CT-006", "cap-theory", "Bucket Hat", "headwear", "head_bucket", 1099, "Olive", "Washed cotton bucket hat in olive.", ["olive", "green", "bucket", "hat", "streetwear"], mat("#6B7344")),
-    # Second Hand: watches
-    ("SH-001", "second-hand", "Field Analog", "watch", "watch_analog", 5499, "Steel", "Steel field watch with a matte black dial.", ["silver", "steel", "analog", "classic", "smart"], mat("#C0C0C0", roughness=0.3, metalness=0.9)),
-    ("SH-002", "second-hand", "Dress Analog", "watch", "watch_analog", 6999, "Gold", "Slim gold-tone dress watch with a cream dial.", ["gold", "analog", "festive", "formal", "evening"], mat("#C9A227", roughness=0.25, metalness=1.0)),
-    ("SH-003", "second-hand", "Retro Digital", "watch", "watch_digital", 2499, "Black", "Retro digital watch in matte black resin.", ["black", "digital", "retro", "all-black", "casual"], mat("#1C1C1C", roughness=0.5)),
-    ("SH-004", "second-hand", "Retro Digital", "watch", "watch_digital", 2799, "Silver", "Retro digital watch with a brushed silver case.", ["silver", "digital", "retro", "tech"], mat("#BFC3C7", roughness=0.35, metalness=0.8)),
-    # Lens Lane: eyewear and chains
-    ("LL-001", "lens-lane", "Round Optical", "eyewear", "eye_round", 2499, "Tortoise", "Round acetate optical frame in warm tortoise.", ["brown", "tortoise", "glasses", "round", "classic"], mat("#6B4423", roughness=0.35)),
-    ("LL-002", "lens-lane", "Round Optical", "eyewear", "eye_round", 2499, "Black", "Round acetate optical frame in gloss black.", ["black", "glasses", "round", "all-black", "classic"], mat("#111111", roughness=0.3)),
-    ("LL-003", "lens-lane", "Wire Round", "eyewear", "eye_round", 2999, "Gold", "Thin gold wire round frame.", ["gold", "glasses", "round", "metal", "festive"], mat("#C5A35A", roughness=0.25, metalness=0.9)),
-    ("LL-004", "lens-lane", "Stage Shades", "eyewear", "eye_shades", 1999, "Black", "Bold black sunglasses for bright lights.", ["black", "sunglasses", "shades", "all-black", "bold"], mat("#0E0E0E", roughness=0.25)),
-    ("LL-005", "lens-lane", "Curb Chain", "neckwear", "neck_chain", 1499, "Silver", "Sterling-finish curb chain.", ["silver", "chain", "metal", "streetwear"], mat("#C8C8C8", roughness=0.2, metalness=1.0)),
-    ("LL-006", "lens-lane", "Rope Chain", "neckwear", "neck_chain", 1799, "Gold", "Gold-tone rope chain for festive nights.", ["gold", "chain", "metal", "festive", "bangalore"], mat("#D4AF37", roughness=0.2, metalness=1.0)),
+    ("KT-001", "kaapi-thrift", "Crisp White Oxford Shirt", "Shirt", "top_shirt", 899, "M", "9/10", "2010s", "White", "A crisp white Oxford that has survived one boardroom and is ready for your stage.", ["white", "shirt", "oxford", "formal", "smart", "classic", "stage"], mat("#F4F3EE")),
+    ("KT-002", "kaapi-thrift", "Black Poplin Shirt", "Shirt", "top_shirt", 799, "M", "9/10", "2010s", "Black", "Inky black poplin that makes every other colour in the room look louder.", ["black", "shirt", "poplin", "all-black", "evening", "smart"], mat("#121212")),
+    ("KT-003", "kaapi-thrift", "Ecru Heavyweight Tee", "Tee", "top_tee", 549, "L", "8/10", "2000s", "Ecru", "Heavyweight cotton in a lived-in ecru, softer now than it was in 2004.", ["ecru", "cream", "white", "tee", "heavyweight", "basic", "casual"], mat("#EDE4D3", "melange", "#DCCFB7")),
+    ("KT-004", "kaapi-thrift", "Washed Black Boxy Tee", "Tee", "top_oversized", 599, "L", "8/10", "2000s", "Washed Black", "Boxy, faded to the perfect off-black, and impossible to look try-hard in.", ["black", "tee", "boxy", "oversized", "baggy", "streetwear", "all-black"], mat("#1D1D1F", "melange", "#2A2A2E")),
+    ("KT-005", "kaapi-thrift", "BLR Graphic Boxy Tee", "Tee", "top_oversized", 699, "XL", "9/10", "2010s", "Off-White", "A boxy off-white tee that says BLR before you have to.", ["white", "tee", "graphic", "print", "bangalore", "bengaluru", "boxy", "oversized"], mat("#EFE8DA", "print", "#1A1A1A", "BLR")),
+    ("KT-006", "kaapi-thrift", "Beige Linen Overshirt", "Overshirt", "outer_overshirt", 1299, "L", "9/10", "2010s", "Beige", "Breezy beige linen to throw open over anything, from a tee to a stage shirt.", ["beige", "linen", "overshirt", "layer", "stage", "smart-casual", "summer"], mat("#CDBA9A", "melange", "#BFAA86")),
+    ("KT-007", "kaapi-thrift", "Charcoal Thrifted Blazer", "Blazer", "outer_blazer", 1799, "40", "8/10", "1990s", "Charcoal", "A nineties charcoal blazer with shoulders that mean business.", ["charcoal", "grey", "blazer", "formal", "keynote", "smart"], mat("#3A3B3F", roughness=0.75)),
+    ("KT-008", "kaapi-thrift", "Madras Check Shirt", "Shirt", "top_shirt", 849, "M", "9/10", "1990s", "Red Madras", "Red-and-navy madras straight out of a nineties Chennai summer.", ["red", "navy", "check", "madras", "shirt", "festive", "bold"], mat("#B22234", "check", "#22306B")),
+    ("SW-001", "stonewash-society", "Light-Wash Baggy Jeans", "Jeans", "bottom_wide", 1199, "32", "9/10", "2000s", "Light Wash", "Light-wash, low-slung and properly baggy, the way the 2000s intended.", ["blue", "light-wash", "denim", "jeans", "baggy", "wide-leg", "relaxed", "streetwear"], mat("#9FB7CC", "denim", "#7F98B0")),
+    ("SW-002", "stonewash-society", "Raw Indigo Wide-Leg Jeans", "Jeans", "bottom_wide", 1299, "32", "9/10", "2010s", "Raw Indigo", "Deep indigo wide-legs with fades only their last owner earned.", ["blue", "indigo", "denim", "jeans", "wide-leg", "dark"], mat("#253A66", "denim", "#1B2B4D")),
+    ("SW-003", "stonewash-society", "Black Baggy Cargos", "Cargos", "bottom_wide", 1099, "32", "8/10", "2000s", "Black", "Six pockets, zero regrets: black cargos cut for maximum swagger.", ["black", "cargos", "baggy", "utility", "all-black", "streetwear"], mat("#151515")),
+    ("SW-004", "stonewash-society", "Stone Pleated Trousers", "Trousers", "bottom_wide", 999, "32", "9/10", "1990s", "Stone", "Pleated nineties trousers in stone, drapey enough for a dance floor.", ["beige", "stone", "pleated", "trousers", "wide-leg", "smart", "festive"], mat("#CBBFA8")),
+    ("SW-005", "stonewash-society", "Slim Charcoal Trousers", "Trousers", "bottom_slim", 899, "32", "8/10", "2010s", "Charcoal", "Sharp slim charcoal trousers that quietly do all the work.", ["charcoal", "grey", "slim", "trousers", "formal", "smart"], mat("#3B3D42")),
+    ("SW-006", "stonewash-society", "Washed Grey Slim Jeans", "Jeans", "bottom_slim", 849, "32", "8/10", "2010s", "Washed Grey", "Slim jeans washed to a soft storm grey.", ["grey", "denim", "jeans", "slim", "casual"], mat("#8A8F98", "denim", "#6F747D")),
+    ("KK-001", "kerbside-kicks", "Clean White Court Sneakers", "Sneakers", "shoe_sneaker", 2499, "UK 9", "9/10", "2020s", "White", "Deep-cleaned to near box-fresh white; nobody will ever know.", ["white", "sneakers", "court", "minimal", "classic", "stage"], mat("#F4F4F2", roughness=0.6)),
+    ("KK-002", "kerbside-kicks", "Black and Gum Sneakers", "Sneakers", "shoe_sneaker", 2299, "UK 9", "8/10", "2010s", "Black / Gum", "Black uppers on a honey gum sole: the low-key flex.", ["black", "gum", "sneakers", "casual", "streetwear"], mat("#1A1A1A", roughness=0.6, soleColor="#A8743A")),
+    ("KK-003", "kerbside-kicks", "Red Retro Runners", "Sneakers", "shoe_sneaker", 2799, "UK 9", "8/10", "1990s", "Red", "Nineties runners in loud red for people who walk into rooms.", ["red", "sneakers", "runners", "retro", "bold", "sporty"], mat("#C8302B", roughness=0.65)),
+    ("KK-004", "kerbside-kicks", "Tan Penny Loafers", "Loafers", "shoe_loafer", 1999, "UK 9", "9/10", "2000s", "Tan", "Buttery tan penny loafers, already broken in for you.", ["tan", "brown", "loafers", "smart", "festive", "formal"], mat("#8B5A2B", roughness=0.45)),
+    ("KK-005", "kerbside-kicks", "Black Leather Loafers", "Loafers", "shoe_loafer", 2199, "UK 9", "9/10", "2010s", "Black", "Polished black loafers that make any trouser look expensive.", ["black", "loafers", "leather", "formal", "all-black", "evening"], mat("#121212", roughness=0.3)),
+    ("LL-001", "lids-and-lenses", "Red Six-Panel Cap", "Cap", "head_cap", 499, "Free", "9/10", "2000s", "Red", "A washed red six-panel that turns any look into a statement.", ["red", "cap", "six-panel", "baseball", "bold", "streetwear"], mat("#C62828")),
+    ("LL-002", "lids-and-lenses", "Washed Black Cap", "Cap", "head_cap", 449, "Free", "8/10", "2010s", "Washed Black", "Sun-faded black cap with exactly the right amount of slouch.", ["black", "cap", "baseball", "all-black"], mat("#1F1F1F")),
+    ("LL-003", "lids-and-lenses", "Cream Corduroy Cap", "Cap", "head_cap", 549, "Free", "9/10", "1990s", "Cream", "Nineties cream corduroy, soft as a Sunday.", ["cream", "white", "cap", "corduroy", "vintage"], mat("#E9DFC9", "corduroy", "#D9CDB2")),
+    ("LL-004", "lids-and-lenses", "Rust Rib Beanie", "Beanie", "head_beanie", 399, "Free", "9/10", "2010s", "Rust", "A rust rib beanie for Bengaluru's three cold days a year.", ["rust", "orange", "beanie", "knit", "winter", "casual"], mat("#A6461F", "melange", "#8E3A18", roughness=0.95)),
+    ("LL-005", "lids-and-lenses", "Khaki Bucket Hat", "Bucket hat", "head_bucket", 549, "Free", "8/10", "1990s", "Khaki", "A khaki bucket hat with festival energy and nineties provenance.", ["khaki", "beige", "bucket", "hat", "streetwear", "vintage"], mat("#B8A77A")),
+    ("LL-006", "lids-and-lenses", "Thin Gold Hex Frames", "Frames", "eye_round", 799, "One size", "9/10", "2010s", "Gold", "Whisper-thin gold hexagons that make you look like you read the whole spec.", ["gold", "glasses", "frames", "hexagonal", "metal", "optical", "classic"], metal("#C9A55A")),
+    ("LL-007", "lids-and-lenses", "Black Square Shades", "Shades", "eye_shades", 699, "One size", "8/10", "1990s", "Black", "Square black shades for spotlights and selective eye contact.", ["black", "sunglasses", "shades", "square", "bold", "all-black"], mat("#0E0E0E", roughness=0.25)),
+    ("SH-001", "second-hand", "Gold Digital Watch", "Watch", "watch_digital", 1899, "One size", "9/10", "1990s", "Gold", "A nineties gold digital that tells the time and tells stories.", ["gold", "watch", "digital", "retro", "metal", "festive", "stage"], metal("#D4AF37")),
+    ("SH-002", "second-hand", "Steel Field Watch", "Watch", "watch_analog", 2499, "One size", "8/10", "1980s", "Steel", "An eighties steel field watch, serviced and still ticking proudly.", ["silver", "steel", "watch", "analog", "field", "classic"], metal("#B8BCC2")),
+    ("SH-003", "second-hand", "Black Digital Sports Watch", "Watch", "watch_digital", 1499, "One size", "8/10", "2000s", "Black", "A tough black digital with a stopwatch for your keynote timer.", ["black", "watch", "digital", "sports", "all-black", "casual"], mat("#151515", roughness=0.5)),
+    ("SH-004", "second-hand", "Silver Rope Chain", "Chain", "neck_chain", 599, "20 in", "9/10", "2000s", "Silver", "A twisted silver rope chain that catches every spotlight.", ["silver", "chain", "rope", "metal", "streetwear"], metal("#C0C0C0")),
+    ("SH-005", "second-hand", "Gold Curb Chain", "Chain", "neck_chain", 699, "20 in", "9/10", "1990s", "Gold", "A nineties gold curb chain with exactly the right weight.", ["gold", "chain", "curb", "metal", "festive"], metal("#D4AF37")),
 ]
+
+DEFAULT_LOOK = ["KT-002", "KT-006", "SW-001", "KK-001", "LL-006", "SH-001"]
+STAGE_READY = ["KT-001", "KT-006", "SW-001", "KK-001", "LL-001", "LL-006", "SH-001"]
+
 
 SLOTS = ["top", "outerwear", "bottom", "footwear", "headwear", "eyewear", "watch", "neckwear"]
 
@@ -121,14 +110,17 @@ def build_catalog():
     mslugs = {m["slug"] for m in M}
     meshes = json.loads((ROOT / "contract" / "meshes.json").read_text())["meshes"]
     products = []
-    for sku, merchant, name, slot, mesh, price, colorName, desc, tags, material in P:
+    for sku, merchant, name, category, mesh, price, size, condition, era, colorName, desc, tags, material in P:
         assert merchant in mslugs, sku
-        assert meshes[mesh]["slot"] == slot, sku
-        products.append(dict(sku=sku, merchant=merchant, name=name, slot=slot, mesh=mesh, price=price,
+        slot = meshes[mesh]["slot"]
+        products.append(dict(sku=sku, merchant=merchant, name=name, category=category, slot=slot, mesh=mesh, price=price,
+                             size=size, condition=condition, era=era, oneOfOne=True,
                              colorName=colorName, description=desc, tags=tags, material=material,
                              image=f"/products/{sku}.webp"))
     assert len({p["sku"] for p in products}) == len(products)
-    return {"version": 1, "currency": "INR", "merchants": merchants, "products": products}
+    return {"version": 2, "name": "SHOP-UNI-FY", "currency": "INR", "demoMode": True,
+            "defaultLook": DEFAULT_LOOK, "looks": [{"title": "Stage Ready", "skus": STAGE_READY}],
+            "merchants": merchants, "products": products}
 
 
 def write_data(cat):
@@ -140,19 +132,21 @@ def write_data(cat):
         counts[p["merchant"]] = counts.get(p["merchant"], 0) + 1
     with open(PUB / "catalog" / "merchants.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["slug", "name", "code", "tagline", "category", "story", "brand_color", "accent_color",
-                    "logo_url", "banner_url", "product_count"])
+        w.writerow(["slug", "name", "code", "instagram", "tagline", "category", "story", "brand_color", "accent_color",
+                    "logo_url", "banner_url", "store_url", "merchant_app_url", "piece_count"])
         for m in cat["merchants"]:
-            w.writerow([m["slug"], m["name"], m["code"], m["tagline"], m["category"], m["story"], m["brandColor"],
-                        m["accentColor"], BASE + m["logo"], BASE + m["banner"], counts.get(m["slug"], 0)])
+            w.writerow([m["slug"], m["name"], m["code"], m["instagram"], m["tagline"], m["category"], m["story"],
+                        m["brandColor"], m["accentColor"], BASE + m["logo"], BASE + m["banner"], f"/m/{m['slug']}",
+                        f"/m/{m['slug']}/app", counts.get(m["slug"], 0)])
     with open(PUB / "catalog" / "products.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["sku", "name", "merchant_slug", "merchant_name", "slot", "price_inr", "color", "description",
-                    "tags", "image_url", "try_on_path"])
+        w.writerow(["sku", "name", "store_slug", "store_name", "category", "slot", "price_inr", "size", "condition", "era",
+                    "one_of_one", "color", "description", "tags", "image_url", "try_on_path", "viewer_url"])
         for p in cat["products"]:
-            w.writerow([p["sku"], p["name"], p["merchant"], byslug[p["merchant"]]["name"], p["slot"], p["price"],
-                        p["colorName"], p["description"], ";".join(p["tags"]), BASE + p["image"],
-                        f"/stage?try={p['sku']}"])
+            w.writerow([p["sku"], p["name"], p["merchant"], byslug[p["merchant"]]["name"], p["category"], p["slot"],
+                        p["price"], p["size"], p["condition"], p["era"], "yes", p["colorName"], p["description"],
+                        ";".join(p["tags"]), BASE + p["image"], f"/experience?try={p['sku']}",
+                        f"{BASE}/product?sku={p['sku']}&embed=1"])
 
 
 # ---------- placeholders ----------
@@ -168,19 +162,17 @@ MANIFEST = ROOT / "blender" / "render" / "rendered.json"
 
 # merchant wordmark fonts (Google Fonts, stored in blender/render/fonts) + case/tracking
 MFONT = {
-    "kaapi-club": dict(file="BowlbyOne.ttf", case="title", track=0.0),
-    "rao-and-sons": dict(file="DMSerifDisplay.ttf", case="title", track=0.0),
-    "indigo-loom": dict(file="TenorSans.ttf", case="upper", track=0.14),
-    "kerb": dict(file="Anton.ttf", case="upper", track=0.10),
-    "cap-theory": dict(file="ArchivoBlack.ttf", case="upper", track=0.04),
+    "kaapi-thrift": dict(file="BowlbyOne.ttf", case="title", track=0.0),
+    "stonewash-society": dict(file="TenorSans.ttf", case="upper", track=0.12),
+    "kerbside-kicks": dict(file="Anton.ttf", case="upper", track=0.08),
+    "lids-and-lenses": dict(file="ArchivoBlack.ttf", case="upper", track=0.03),
     "second-hand": dict(file="SpaceMono-Bold.ttf", case="lower", track=0.0),
-    "lens-lane": dict(file="Syne.ttf", case="lower", track=0.0),
 }
-# wordmark colour override (Kerb's brand black would vanish on dark pages; its accent red reads on both)
-MARK_OVERRIDE = {"kerb": "#E63946"}
+# wordmark colour override (Kerbside's brand black would vanish on dark pages; a deep lime reads on both)
+MARK_OVERRIDE = {"kerbside-kicks": "#9CB800"}
 # subtle pattern for each merchant banner
-BANNER_TEX = {"kaapi-club": "melange", "rao-and-sons": "check", "indigo-loom": "denim", "kerb": "corduroy",
-              "cap-theory": "corduroy", "second-hand": "stripe", "lens-lane": "melange"}
+BANNER_TEX = {"kaapi-thrift": "melange", "stonewash-society": "denim", "kerbside-kicks": "corduroy",
+              "lids-and-lenses": "corduroy", "second-hand": "stripe"}
 SLOT_LABEL = {"top": "TOP", "outerwear": "OUTERWEAR", "bottom": "BOTTOM", "footwear": "FOOTWEAR",
               "headwear": "HEADWEAR", "eyewear": "EYEWEAR", "watch": "WATCH", "neckwear": "NECKWEAR"}
 
@@ -384,7 +376,7 @@ def product_placeholder(p, m):
     tw = tracked_width(tf, tag, 3)
     d.rounded_rectangle([W - 56 - tw - 36, 56, W - 56, 96], radius=20, outline=fg, width=2)
     draw_tracked(d, W - 56 - tw - 18, 62, tag, tf, fg, 3)
-    d.text((56, 108), p["sku"], font=font(22, bold=False), fill=mix(fg, bg, 0.35))
+    d.text((56, 108), f"{p['sku']}  ·  1 OF 1  ·  {p['size']}  ·  {p['condition']}  ·  {p['era']}", font=font(22, bold=False), fill=mix(fg, bg, 0.35))
     # copy
     nsz = 48
     while nsz > 30 and d.textlength(p["name"], font=font(nsz)) > 660:
@@ -485,13 +477,18 @@ def merchant_assets(m, products):
 
 
 def brand_logo(path):
-    """Product wordmark: type only, light text on transparent. Working name STAGE."""
-    f = gfont("Syne.ttf", 150)
-    s, track = "STAGE", 150 * 0.03
-    w = int(tracked_width(f, s, track)) + 80
+    """SHOP-UNI-FY wordmark in Anton: bone letters, signal-red hyphens, transparent."""
+    f = gfont("Anton.ttf", 200)
+    s, track = "SHOP-UNI-FY", 200 * 0.02
+    bone, red = (243, 238, 230, 255), (255, 61, 46, 255)
+    w = int(tracked_width(f, s, track)) + 120
     asc, desc = f.getmetrics()
-    img = Image.new("RGBA", (w, asc + desc + 60), (0, 0, 0, 0))
-    draw_tracked(ImageDraw.Draw(img), 40, 30, s, f, (246, 243, 236, 255), track)
+    img = Image.new("RGBA", (w, asc + desc + 80), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    x = 60
+    for ch in s:
+        d.text((x, 40), ch, font=f, fill=red if ch == "-" else bone)
+        x += d.textlength(ch, font=f) + track
     bb = img.getbbox()
     img = img.crop((bb[0] - 24, bb[1] - 24, bb[2] + 24, bb[3] + 24))
     img.save(path)
