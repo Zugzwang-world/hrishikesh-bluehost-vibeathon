@@ -11,16 +11,17 @@ import { ANCHORS, clamp01, easeInOutCubic, live, REDUCED_MOTION, turntable } fro
 import { DRACO_PATH, useAssetExists } from './assets'
 import { garmentMaterial, printTexture } from './materials'
 import { PrimitiveBody, PrimitiveGarment } from './Primitives'
+import { markSettled, type AssetKey } from './ready'
 
 type MeshInfo = { slot: string; hides: string[]; shows: string[] }
 const MESHES = meshes.meshes as Record<string, MeshInfo>
 const AVATAR_URL = meshes.files.avatar
 const WARDROBE_URL = meshes.files.wardrobe
 
-class Boundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+class Boundary extends Component<{ fallback: ReactNode; children: ReactNode; asset?: AssetKey }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
-  componentDidCatch(e: unknown) { console.warn('[stage] asset fallback', e) }
+  componentDidCatch(e: unknown) { console.warn('[stage] asset fallback', e); if (this.props.asset) markSettled(this.props.asset) }
   render() { return this.state.failed ? this.props.fallback : this.props.children }
 }
 export { Boundary as AssetBoundary }
@@ -117,6 +118,7 @@ function PrimitiveWardrobe({ items }: { items: Product[] }) {
 /** wardrobe.glb: clone the node of each equipped garment, material from the catalog. Missing node -> primitive. */
 function GlbWardrobe({ items }: { items: Product[] }) {
   const gltf = useGLTF(WARDROBE_URL, DRACO_PATH)
+  useLayoutEffect(() => markSettled('wardrobe'), [])
   const nodes = useMemo(() => {
     gltf.scene.updateMatrixWorld(true)
     const map = new Map<string, Object3D>()
@@ -164,6 +166,7 @@ function GlbGarment({ node, p }: { node: Object3D; p: Product }) {
 /** avatar.glb with contract visibility. */
 function GlbBody({ hidden }: { hidden: Set<string> }) {
   const gltf = useGLTF(AVATAR_URL, DRACO_PATH)
+  useLayoutEffect(() => markSettled('avatar'), [])
   const named = useMemo(() => {
     const list: Object3D[] = []
     gltf.scene.traverse(o => {
@@ -247,8 +250,8 @@ export function Avatar() {
   const primWardrobe = <PrimitiveWardrobe items={items} />
   return (
     <group ref={root} position={ANCHORS.avatar_fit.toArray()} name="avatar_root">
-      {hasAvatar ? <Boundary fallback={prim}><Suspense fallback={prim}><GlbBody hidden={hidden} /></Suspense></Boundary> : prim}
-      {hasWardrobe ? <Boundary fallback={primWardrobe}><Suspense fallback={primWardrobe}><GlbWardrobe items={items} /></Suspense></Boundary> : primWardrobe}
+      {hasAvatar ? <Boundary fallback={prim} asset="avatar"><Suspense fallback={prim}><GlbBody hidden={hidden} /></Suspense></Boundary> : prim}
+      {hasWardrobe ? <Boundary fallback={primWardrobe} asset="wardrobe"><Suspense fallback={primWardrobe}><GlbWardrobe items={items} /></Suspense></Boundary> : primWardrobe}
     </group>
   )
 }
@@ -258,5 +261,5 @@ export function GarmentPiece({ p }: { p: Product }) {
   const hasWardrobe = useAssetExists(WARDROBE_URL)
   const prim = <PrimitiveGarment mesh={p.mesh} m={garmentMaterial(p)} />
   if (!hasWardrobe) return prim
-  return <Boundary fallback={prim}><Suspense fallback={prim}><GlbWardrobe items={[p]} /></Suspense></Boundary>
+  return <Boundary fallback={prim} asset="wardrobe"><Suspense fallback={prim}><GlbWardrobe items={[p]} /></Suspense></Boundary>
 }

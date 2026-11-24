@@ -6,6 +6,7 @@ import { Box3, Group, PerspectiveCamera, Vector3 } from 'three'
 import { PARAMS } from '../lib/params'
 import { productBySku, useStore } from '../store'
 import { GarmentPiece } from './Avatar'
+import { ReadySignal } from './ready'
 
 const SMALL = new Set(['watch', 'neckwear', 'eyewear'])
 
@@ -65,6 +66,7 @@ export default function ProductView() {
       <directionalLight position={[-3, 2, 2]} intensity={0.9} color="#eef1ff" />
       <directionalLight position={[0, 3, -3]} intensity={1.1} color="#ffffff" />
       <Piece />
+      <ReadySignal need={['wardrobe']} />
     </Canvas>
   )
 }

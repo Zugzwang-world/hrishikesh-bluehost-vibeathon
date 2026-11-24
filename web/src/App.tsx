@@ -6,6 +6,7 @@ import { PARAMS } from './lib/params'
 import { useStore } from './store'
 import Scene, { hasWebGL } from './scene/Scene'
 import { assetExists } from './scene/assets'
+import { fireReady } from './scene/ready'
 import meshes from './contract/meshes.json'
 import { ProductRail } from './ui/ProductRail'
 import { PromptBar } from './ui/PromptBar'
@@ -69,6 +70,7 @@ export default function App() {
   const [webgl, setWebgl] = useState(() => hasWebGL())
   const [failed, setFailed] = useState(false)
   const three = webgl && !failed
+  useEffect(() => { if (!three) fireReady() }, [three])
   const scene = three
     ? <SceneBoundary fallback={<Hero />} onFail={() => { setFailed(true); setWebgl(false) }}><Scene /></SceneBoundary>
     : <Hero />
@@ -78,7 +80,6 @@ export default function App() {
     return (
       <div className="app app--bare app--product">
         {three ? <Suspense fallback={null}><SceneBoundary fallback={null} onFail={() => setFailed(true)}><ProductView /></SceneBoundary></Suspense> : null}
-        {three && <Loader ready={!!catalog && checked} minimal />}
       </div>
     )
   }
@@ -86,7 +87,7 @@ export default function App() {
   if (PARAMS.mode === 'persona' || PARAMS.mode === 'locked') {
     return (
       <div className="app app--bare">
-        <main className="stage-area">{scene}{three && <Loader ready={!!catalog && checked} minimal />}</main>
+        <main className="stage-area">{scene}</main>
       </div>
     )
   }
@@ -101,7 +102,13 @@ export default function App() {
         </header>
       )}
       <div className="exp">
-        <div className="exp__prompt"><PromptBar /></div>
+        <div className="exp__prompt">
+          <div className="chapter">
+            <div className="chapter__tag">03 / 05 · The Experience</div>
+            <div className="chapter__line">Style one look from five thrift stores on my avatar, then lock it.</div>
+          </div>
+          <PromptBar />
+        </div>
         <aside className="exp__col exp__col--left">{ms.slice(0, 2).map((m, i) => <StoreCard key={m.slug} m={m} index={i} />)}</aside>
         <main className="stage-area">
           {scene}

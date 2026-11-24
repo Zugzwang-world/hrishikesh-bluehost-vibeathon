@@ -17,9 +17,11 @@ export function lookProducts(look: Look, catalog: Catalog | null): Product[] {
   return out
 }
 
-export function bagUrl(skus: string[], title: string): string | null {
-  if (!PARAMS.host) return null
-  return `${PARAMS.host}${PARAMS.cartPath}?add=${skus.join(',')}&look=${encodeURIComponent(title)}`
+/** Host cart when a host is given; otherwise this site's own /bag (Lane D3). */
+export const SELF_BAG = !PARAMS.host || PARAMS.host === 'self'
+export function bagUrl(skus: string[], title: string): string {
+  const q = `?add=${skus.join(',')}&look=${encodeURIComponent(title)}`
+  return SELF_BAG ? `/bag${q}` : `${PARAMS.host}${PARAMS.cartPath}${q}`
 }
 
 export function postAddLook(skus: string[], title: string) {

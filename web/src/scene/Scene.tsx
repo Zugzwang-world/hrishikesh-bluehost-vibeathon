@@ -8,6 +8,7 @@ import { ANCHORS, turntable } from './anchors'
 import { assetExists, DRACO_PATH, useAssetExists } from './assets'
 import { AssetBoundary, Avatar } from './Avatar'
 import { CameraRig, GlbStage, Lights, PrimitiveStage } from './Stage'
+import { ReadySignal } from './ready'
 
 // Start the GLB downloads as soon as each file is known to exist (in parallel, before the scene mounts).
 for (const url of [meshes.files.avatar, meshes.files.wardrobe, meshes.files.stage]) {
@@ -34,7 +35,7 @@ export function snapshot(name = 'stage-look.png') {
 function StageSet() {
   const hasStage = useAssetExists(meshes.files.stage)
   const prim = <PrimitiveStage />
-  return hasStage ? <AssetBoundary fallback={prim}><Suspense fallback={prim}><GlbStage /></Suspense></AssetBoundary> : prim
+  return hasStage ? <AssetBoundary fallback={prim} asset="stage"><Suspense fallback={prim}><GlbStage /></Suspense></AssetBoundary> : prim
 }
 
 export default function Scene() {
@@ -67,6 +68,7 @@ export default function Scene() {
       >
         <PerformanceMonitor factor={1} onChange={({ factor }) => setDpr(Math.round((1 + 0.75 * factor) * 4) / 4)} onFallback={() => setDpr(1)} flipflops={4} />
         <Lights />
+        <ReadySignal need={['avatar', 'wardrobe', 'stage']} />
         <CameraRig />
         <StageSet />
         <Avatar />

@@ -11,6 +11,7 @@ import { PARAMS } from '../lib/params'
 import { ANCHORS, clamp01, easeInOutCubic, live, REDUCED_MOTION, type AnchorName } from './anchors'
 import { DRACO_PATH } from './assets'
 import { ledTexture, ledTextureGltf } from './ledTexture'
+import { markSettled } from './ready'
 
 /** 0 = rehearsal, 1 = showtime. Eased in Lights, read by stage materials. */
 export const stageFx = { mix: 0 }
@@ -125,6 +126,7 @@ function useImag(screens: Mesh[], mats: MeshStandardMaterial[]) {
 /** stage.glb: copies empties into ANCHORS, wires led_wall / led_wall_side / led_strip / center_mark / light_cone materials. */
 export function GlbStage() {
   const gltf = useGLTF(meshes.files.stage, DRACO_PATH)
+  useLayoutEffect(() => markSettled('stage'), [])
   const imag = useMemo(() => ({ screens: [] as Mesh[], mats: [] as MeshStandardMaterial[] }), [gltf])
   const mats = useMemo<FxMats>(() => {
     const out: FxMats = { led: [], strip: [], cone: [], mark: [] }
@@ -153,6 +155,11 @@ export function GlbStage() {
   }, [gltf, imag])
   useFxMaterials(mats)
   useImag(imag.screens, imag.mats)
+  // portfolio hero: nothing between the camera and him (audience heads, floor monitors)
+  useLayoutEffect(() => {
+    if (PARAMS.mode !== 'persona') return
+    gltf.scene.traverse(o => { if (/^(audience|floor_monitor)/.test(o.name)) o.visible = false })
+  }, [gltf])
   return <primitive object={gltf.scene} />
 }
 
@@ -181,7 +188,11 @@ export function Lights() {
     const k = easeInOutCubic(clamp01(stageFx.mix))
     if (hemi.current) hemi.current.intensity = lerp(1.15, 0.06, k)
     if (amb.current) amb.current.intensity = lerp(0.35, 0.02, k)
-    if (key.current) key.current.intensity = lerp(2.3, 0.15, k)
+    if (key.current) {
+      // persona hero keeps a warm key on him so the clothes still read under the blue/violet wash
+      key.current.intensity = lerp(2.3, PARAMS.mode === 'persona' ? 1.25 : 0.15, k)
+      if (PARAMS.mode === 'persona') key.current.color.set('#ffd8b0')
+    }
     if (fill.current) fill.current.intensity = lerp(1.0, 0, k)
     if (rim.current) rim.current.intensity = lerp(0.9, 2.2, k)
     const pulse = 1 + 0.08 * Math.sin(clock.elapsedTime * 1.7)
@@ -204,8 +215,8 @@ export function Lights() {
       <directionalLight ref={key} position={[2.6, 5, 6]} intensity={2.3} color="#fffaf2" />
       <directionalLight ref={fill} position={[-4, 2.5, 4]} intensity={1} color="#e8eeff" />
       <directionalLight ref={rim} position={[0, 4, -4]} intensity={0.9} color="#9fb6ff" />
-      <spotLight ref={sL} color="#6f8cff" angle={0.32} penumbra={0.6} decay={1.2} distance={30} intensity={0} />
-      <spotLight ref={sR} color="#ff5fae" angle={0.32} penumbra={0.6} decay={1.2} distance={30} intensity={0} />
+      <spotLight ref={sL} color="#5a6dff" angle={0.32} penumbra={0.6} decay={1.2} distance={30} intensity={0} />
+      <spotLight ref={sR} color="#8a5cff" angle={0.32} penumbra={0.6} decay={1.2} distance={30} intensity={0} />
       <spotLight ref={sC} color="#fff1d6" angle={0.26} penumbra={0.45} decay={1.2} distance={30} intensity={0} />
       {targets.map((t, i) => <primitive key={i} object={t} />)}
       <primitive object={keyTarget} />
@@ -224,13 +235,18 @@ export function CameraRig() {
   const st = useMemo(() => ({ shot: '' as Shot | '', t0: 0, fromPos: new Vector3(), fromTgt: new Vector3(), tgt: new Vector3().copy(ANCHORS.cam_fit_target), pos: new Vector3(), aim: new Vector3(), right: new Vector3() }), [])
   useFrame(({ clock }) => {
     if (PARAMS.mode === 'persona') {
-      // portfolio: slow orbit around the speaker on the centre mark
+      // portfolio hero: slow cinematic arc + slight dolly, head-to-toe framing, slightly low angle.
+      // Works for a wide short frame (~16:6) and phones: distance fits 2.9 m of height and 1.5 m of width.
       const t = clock.elapsedTime
-      const a = Math.sin(t * 0.11) * 0.75
+      const a = Math.sin(t * 0.085) * 0.5 + 0.12
       const aspect = size.width / Math.max(1, size.height)
-      const r = aspect < 1 ? 9 / Math.max(0.55, aspect) : 7.2
-      st.aim.set(ANCHORS.mark_center.x, ANCHORS.mark_center.y + 1.25, ANCHORS.mark_center.z)
-      camera.position.set(st.aim.x + Math.sin(a) * r, st.aim.y + 0.55 + Math.sin(t * 0.07) * 0.25, st.aim.z + Math.cos(a) * r)
+      const pc = camera as PerspectiveCamera
+      if (pc.fov !== 38) { pc.fov = 38; pc.updateProjectionMatrix() }
+      const tan = Math.tan((pc.fov * Math.PI) / 360)
+      const dist = Math.max(1.4 / tan, 0.8 / (tan * aspect)) * (1 + 0.05 * Math.sin(t * 0.13))
+      const c = ANCHORS.mark_center
+      st.aim.set(c.x, c.y + 1.0, c.z)
+      camera.position.set(c.x + Math.sin(a) * dist, c.y + 0.9, c.z + Math.cos(a) * dist)
       camera.lookAt(st.aim)
       return
     }
