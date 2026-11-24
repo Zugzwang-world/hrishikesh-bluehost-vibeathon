@@ -142,18 +142,28 @@ def do_banner(slug):
     # left-side dark gradient for the wordmark
     g = Image.linear_gradient("L").rotate(90, expand=True).resize((W, H))  # 0 on the left .. 255 on the right
     shade = Image.new("RGBA", (W, H), (8, 8, 14, 0))
-    shade.putalpha(g.point(lambda v: int(max(0, 200 - v * 1.6))))
+    shade.putalpha(g.point(lambda v: int(max(0, 235 - v * 1.5))))
     im.alpha_composite(shade)
     logo = Image.open(PUB / "merchants" / f"{slug}.png").convert("RGBA")
-    ls = min(560 / logo.width, 150 / logo.height)
+    ls = min(480 / logo.width, 140 / logo.height)
     logo = logo.resize((round(logo.width * ls), round(logo.height * ls)), Image.LANCZOS)
-    # wordmarks are tuned for both light and dark pages; lift them to bone on the dark side for contrast
-    bone = Image.new("RGBA", logo.size, (243, 238, 230, 255)); bone.putalpha(logo.split()[3])
-    lx, ly = 96, (H - logo.height) // 2 - 40
-    im.alpha_composite(bone, (lx, ly))
+    # the wordmark goes on exactly as designed (clean type); never recoloured or generated
+    lx, ly = 96, (H - logo.height) // 2 - 56
+    im.alpha_composite(logo, (lx, ly))
     d = ImageDraw.Draw(im)
-    d.text((lx + 4, ly + logo.height + 28), mer["tagline"], font=font("Poppins-Medium.ttf", 30), fill=(243, 238, 230, 230))
-    d.text((lx + 4, ly + logo.height + 78), f"{mer['instagram']}  ·  1 OF 1 PIECES", font=font("SpaceMono-Bold.ttf", 20),
+    f = font("Poppins-Medium.ttf", 28)
+    words, lines, cur = mer["tagline"].split(), [], ""
+    for w_ in words:
+        trial = (cur + " " + w_).strip()
+        if d.textlength(trial, font=f) > 470 and cur:
+            lines.append(cur); cur = w_
+        else:
+            cur = trial
+    lines.append(cur)
+    ty = ly + logo.height + 26
+    for ln in lines:
+        d.text((lx + 4, ty), ln, font=f, fill=(243, 238, 230, 235)); ty += 38
+    d.text((lx + 4, ty + 12), f"{mer['instagram']}  ·  1 OF 1 PIECES", font=font("SpaceMono-Bold.ttf", 20),
            fill=(212, 175, 55, 255))
     im.convert("RGB").save(PUB / "merchants" / f"{slug}-banner.jpg", "JPEG", quality=88)
     return slug
