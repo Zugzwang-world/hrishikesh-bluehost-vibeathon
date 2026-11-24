@@ -34,18 +34,21 @@
         var p = document.getElementById('poster'), q = new URLSearchParams(location.search), path = location.pathname
         if (/^\/(bag|checkout|orders|store)/.test(path)) { p.remove(); return }
         var h
+        var DEF = 'KK-001,KT-002,KT-006,LL-006,SH-001,SW-001'
+        var NAME = '<div class="name">HRISHIKESH HUNDEKARI</div><div class="sub">SHOP-UNI-FY · SMALL BUSINESS AI BUILDER TOUR · BENGALURU</div>'
+        function cut(k) { return '<img class="portrait" src="/looks/' + k + '.webp" data-fb="/looks/' + DEF + '.webp" alt="">' }
         if (path.indexOf('/product') === 0) {
           var sku = (q.get('sku') || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase()
           h = '<img class="contain" src="/products/' + sku + '.webp" alt="">'
-        } else if (q.get('mode') === 'persona') {
-          h = '<div class="name">HRISHIKESH HUNDEKARI</div><div class="sub">SHOP-UNI-FY · SMALL BUSINESS AI BUILDER TOUR · BENGALURU</div>' +
-              '<img class="portrait" src="/brand/persona.png" alt="">'
+        } else if (q.get('mode') === 'locked' && q.get('look')) {
+          var k = q.get('look').split(',').map(function (s) { return s.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') }).filter(Boolean).sort().join(',')
+          h = NAME + cut(k)
         } else {
-          h = '<img class="cover" src="/brand/hero.jpg" alt="">'
+          h = NAME + cut(DEF)
         }
         p.innerHTML = h + '<div class="tag">SHOP-UNI-FY · SETTING THE STAGE</div><div class="bar"></div>'
         var img = p.querySelector('img')
-        if (img) { if (img.complete) img.classList.add('in'); else img.onload = function () { img.classList.add('in') } ; img.onerror = function () { img.remove() } }
+        if (img) { img.onload = function () { img.classList.add('in') }; img.onerror = function () { var fb = img.getAttribute('data-fb'); if (fb && img.src.indexOf(fb) < 0) { img.src = fb } else { img.remove() } }; if (img.complete && img.naturalWidth) img.classList.add('in') }
         var done = false
         function hide() { if (done) return; done = true; p.classList.add('gone'); setTimeout(function () { p.remove() }, 900) }
         window.addEventListener('stage:ready', function () { requestAnimationFrame(function () { requestAnimationFrame(hide) }) })
