@@ -28,6 +28,7 @@ plus avatar.glb and wardrobe.glb when present.
 
 - Riser top surface at y = 0, 12 m wide (x -6..6), z -4..2.6, 0.6 m tall. House floor at y -0.6.
 - Main LED wall (led_wall): 8.64 x 3.6 m (**2.4 : 1**), x -4.32..4.32, y 0.5..4.1, z -3.6, facing +Z.
+- Row of 13 LED uplighters plus a thin floor line along the wall base (z -3.05, material led_strip).
 - Side LED panels (led_wall_side): 2.1 x 3.0 m each, centred x ±5.72, y 0.55..3.55, z -3.35, turned 14° to the house.
 - Two flown truss rows hung from the ceiling on chain hoists, x -6.6..6.6:
   front (lower) row at z 1.3, y ~6.05, 9 heads, warm lenses; back (upper) row at z -1.1, y ~6.75, 9 heads, blue lenses.
@@ -60,7 +61,7 @@ Spot positions sit at the fixture lens; check_glb.py prints the exact values.
 | --- | --- | --- |
 | led_wall | led_wall | Single quad, UV 0..1 over the full 2.4 : 1 screen. Baked base look (gradient #2D4BFF to #7A5CFF plus outlined squares, clear centre band) on map and emissiveMap; the web may replace or overlay it at runtime. glTF UV convention: `texture.flipY = false` for a canvas texture. A 16:9 canvas will stretch 1.35x wide; draw at 2.4 : 1 (e.g. 2304 x 960). |
 | led_wall_side | led_side_panels | Two side panels, UV 0..1 each (0.7 : 1 portrait), baked gradient plus squares. Note the web's `startsWith('led_wall')` also paints the main canvas onto these |
-| led_strip | led_edge_strip, podium accent | Lit stage lip; turn up in Showtime |
+| led_strip | led_edge_strip, wall_uplights, podium accent | Lit stage lip and wall-base uplighters; turn up in Showtime |
 | center_mark | center_mark | Glowing ring, dot and ticks at mark_center |
 | turntable_ring | turntable | Faint ring at avatar_fit (the turntable disc itself is `turntable`, flush at y 0.0015) |
 | light_cone | light_cones | 12 open cones, UV v = 0 at the lens, 1 at the far end (use it to fade). Additive + transparent in the web |
@@ -74,7 +75,7 @@ podium, podium_top, mic_metal, monitor, monitor_grille, seat (navy), audience, t
 ## Meshes
 
 riser, led_edge_strip, stairs, house_floor, drape, center_mark, turntable, led_wall, led_wall_frame,
-led_side_panels, ceiling, truss, fixtures, light_cones, podium, floor_monitors, audience_seats,
+wall_uplights, led_side_panels, ceiling, truss, fixtures, light_cones, podium, floor_monitors, audience_seats,
 audience_people, house_walls, house_lights. light_cones: 3 hero spots + 4 washes on the front row,
 5 back-row beams raking onto the deck. Audience seats and people are each one merged mesh.
 
