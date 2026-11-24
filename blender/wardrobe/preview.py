@@ -38,6 +38,8 @@ for o in gar:
             for b in body_objs:
                 if b.name.startswith(s):
                     b.hide_render = False
+if os.environ.get("KEEP_HAIR"):
+    hides.discard("hair_full")
 for b in body_objs:
     if any(b.name.startswith(h) for h in hides):
         b.hide_render = True

@@ -223,7 +223,7 @@ def real_body():
     heads = []
     for o in new:
         # what stays visible under a hat: the head (which may carry baked hair) and hair_capped; hair_full is hidden
-        if o.type == "MESH" and (o.name.startswith("body_head") or o.name.startswith("hair_capped")):
+        if o.type == "MESH" and (o.name.startswith("body_head") or o.name.startswith("hair")):
             me = bpy.data.meshes.new_from_object(o.evaluated_get(bpy.context.evaluated_depsgraph_get()))
             c = new_obj("headpart", me)
             c.matrix_world = o.matrix_world.copy()
@@ -869,12 +869,14 @@ def build_shoe_loafer(body, under):
 
 # ---------------------------------------------------------------- headwear
 HAT_TILT = {"head_cap": 13.0, "head_beanie": 9.0, "head_bucket": 7.0}
+HEAD_P = 2.6  # super-ellipsoid exponent of the head+hair volume (curly hair is boxier than an ellipsoid)
 
 
 def head_volume():
     """Ellipsoid the headwear must clear: a curly-hair allowance (~+2 cm, top ~1.79) grown to contain the
     avatar's real head + hair above the brow. Returns (cx, cy, cz, rx, ry, rz) in glTF metres."""
-    cx, cy, cz, rx, ry, rz = 0.0, 1.635, 0.0, 0.112, 0.155, 0.122
+    cx, cy, cz, rx, ry, rz = 0.0, 1.635, 0.005, 0.112, 0.155, 0.122
+    P = HEAD_P
     ob = HEAD["obj"]
     if ob is not None:
         sc = 1.0
@@ -884,7 +886,7 @@ def head_volume():
             x, y, z = w.x, w.z, -w.y
             if y < 1.62 or (z > 0.085 and y < 1.69):  # face, beard, ears below the hat line
                 continue
-            q = math.sqrt(((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + ((z - cz) / rz) ** 2)
+            q = (abs((x - cx) / rx) ** P + abs((y - cy) / ry) ** P + abs((z - cz) / rz) ** P) ** (1.0 / P)
             if q > sc:
                 sc, worst = q, (round(x, 3), round(y, 3), round(z, 3))
         rx, ry, rz = rx * sc, ry * sc, rz * sc
@@ -895,7 +897,12 @@ def head_volume():
 def head_proxy_obj(hv, pad=0.0):
     cx, cy, cz, rx, ry, rz = hv
     bm = bmesh.new()
-    sphere(bm, G(cx, cy, cz), rx + pad, ry + pad, rz + pad, 32, 16)
+    m = bmesh.ops.create_uvsphere(bm, u_segments=40, v_segments=20, radius=1.0)
+    e = 2.0 / HEAD_P
+    for vert in m["verts"]:  # super-ellipsoid, same metric as head_volume()
+        a, b, c = vert.co  # blender x, y(-gz), z(gy)
+        vert.co = G(cx + math.copysign(abs(a) ** e, a) * (rx + pad), cy + math.copysign(abs(c) ** e, c) * (ry + pad),
+                    cz - math.copysign(abs(b) ** e, b) * (rz + pad))
     ob = bm_to_obj("head_proxy", bm)
     ob.hide_render = True
     return ob
