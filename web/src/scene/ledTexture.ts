@@ -38,20 +38,20 @@ function draw(c: HTMLCanvasElement) {
   let size = 230
   g.font = `400 ${size}px ${font}`
   while (g.measureText(SPEAKER).width > W * 0.88 && size > 40) { size -= 8; g.font = `400 ${size}px ${font}` }
-  g.fillText(SPEAKER, W / 2, H * 0.46)
+  g.fillText(SPEAKER, W / 2, H * 0.22) // high on the wall: clear of his head in every framing
   g.shadowBlur = 0
   let s2 = 58
   g.font = `600 ${s2}px 'Inter', system-ui, sans-serif`
   while (g.measureText(TALK_TITLE).width > W * 0.86 && s2 > 20) { s2 -= 2; g.font = `600 ${s2}px 'Inter', system-ui, sans-serif` }
   g.fillStyle = 'rgba(243,238,230,0.92)'
-  g.fillText(TALK_TITLE, W / 2, H * 0.66)
+  g.fillText(TALK_TITLE, W / 2, H * 0.39)
 }
 
 /** Wide canvas for the LED wall: cobalt-to-violet wash, outlined squares, speaker name and talk line. Text only. */
 export function ledTexture(): CanvasTexture {
   if (tex) return tex
   const c = document.createElement('canvas')
-  c.width = 2048; c.height = 1024
+  c.width = 2304; c.height = 960 // 2.4 : 1, the main LED wall's aspect
   draw(c)
   tex = new CanvasTexture(c)
   tex.colorSpace = SRGBColorSpace
