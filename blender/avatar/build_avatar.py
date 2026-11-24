@@ -20,15 +20,16 @@ OUT_GLB = os.path.join(ROOT, "web", "public", "models", "avatar.glb")
 OUT_BLEND = os.path.join(HERE, "avatar.blend")
 
 # ---------------------------------------------------------------- look
-SKIN_SRGB = (0x8A, 0x5A, 0x3C)
-HAIR_SRGB = (0x17, 0x13, 0x12)
+SKIN_SRGB = (0xA0, 0x6C, 0x52)  # sampled from the founder's photos (warm medium brown)
+HAIR_SRGB = (0x1C, 0x15, 0x12)
+STUBBLE_SRGB = (0x5E, 0x42, 0x36)
 SKIN_ROUGH = 0.55
 HAIR_ROUGH = 0.78
 
 # ---------------------------------------------------------------- budgets
-BODY_TRIS = 23000
-HAIR_TRIS = 6500
-CAPPED_TRIS = 1800
+BODY_TRIS = 21500
+HAIR_TRIS = 9500
+CAPPED_TRIS = 2600
 BEARD_TRIS = 2600
 
 # ---------------------------------------------------------------- landmarks (glTF frame)
@@ -188,13 +189,13 @@ def build_body_mb():
     # torso loft: (y, half width, half depth, z centre), Catmull-Rom resampled
     rings = [
         (0.830, 0.100, 0.075, -0.005),
-        (0.865, 0.160, 0.112, -0.010),
-        (0.920, 0.180, 0.120, -0.012),
-        (0.975, 0.170, 0.112, -0.006),
-        (1.050, 0.150, 0.105, 0.000),
-        (1.150, 0.163, 0.113, 0.006),
-        (1.250, 0.180, 0.120, 0.010),
-        (1.330, 0.186, 0.115, 0.004),
+        (0.865, 0.158, 0.110, -0.010),
+        (0.920, 0.176, 0.118, -0.012),
+        (0.975, 0.162, 0.108, -0.006),
+        (1.050, 0.143, 0.100, 0.000),
+        (1.150, 0.158, 0.110, 0.008),
+        (1.250, 0.180, 0.120, 0.012),
+        (1.330, 0.188, 0.115, 0.004),
         (1.390, 0.182, 0.100, -0.004),
         (1.430, 0.160, 0.082, -0.010),
         (1.460, 0.095, 0.065, -0.012),
@@ -206,7 +207,7 @@ def build_body_mb():
     for s in (1, -1):
         mb.ellipsoid((0.10 * s, 1.425, -0.012), (0.095, 0, 0), (0, 0.040, 0), (0, 0, 0.070), nu=32, nv=14)
     # neck
-    mb.tube((0, 1.40, -0.014), (0, 1.60, -0.006), [(0, 0.068), (0.3, 0.063), (0.6, 0.061), (1, 0.060)], n=32)
+    mb.tube((0, 1.40, -0.014), (0, 1.60, -0.006), [(0, 0.066), (0.3, 0.061), (0.6, 0.059), (1, 0.058)], n=32)
     # head
     mb.ellipsoid(HEAD_C, (HEAD_R.x, 0, 0), (0, HEAD_R.y, 0), (0, 0, HEAD_R.z), nu=64, nv=40, fn=head_deform)
     for s in (1, -1):
@@ -220,10 +221,10 @@ def build_body_mb():
         E = J + d * ELBOW_T
         W = J + d * WRIST_T
         mb.sphere(J + Vector((0.004 * s, -0.004, 0)), 0.054)
-        mb.tube(J, E, [(0, 0.052), (0.35, 0.049), (0.75, 0.043), (1, 0.040)])
-        mb.sphere(E, 0.040, 24, 12)
-        mb.tube(E, W, [(0, 0.040), (0.25, 0.042), (0.7, 0.035), (1, 0.029)])
-        mb.sphere(W, 0.029, 24, 12)
+        mb.tube(J, E, [(0, 0.052), (0.35, 0.050), (0.6, 0.046), (0.85, 0.040), (1, 0.038)])
+        mb.sphere(E, 0.038, 24, 12)
+        mb.tube(E, W, [(0, 0.038), (0.25, 0.040), (0.7, 0.033), (1, 0.028)])
+        mb.sphere(W, 0.028, 24, 12)
         # mitten hand: palm faces the thigh
         z = Vector((0, 0, 1))
         mb.ellipsoid(J + d * 0.622, d * 0.076, n * 0.024, z * 0.046, nu=28, nv=16)          # palm
@@ -236,10 +237,10 @@ def build_body_mb():
         hip = Vector((0.096 * s, 0.90, -0.006))
         K = Vector((0.100 * s, 0.49, 0.008))
         A = Vector((0.105 * s, 0.085, -0.008))
-        mb.tube(hip, K, [(0, 0.090), (0.25, 0.085), (0.6, 0.070), (0.9, 0.058), (1, 0.056)])
+        mb.tube(hip, K, [(0, 0.086), (0.25, 0.081), (0.6, 0.066), (0.9, 0.055), (1, 0.053)])
         mb.sphere(K, 0.055, 24, 12)
-        mb.tube(K, A, [(0, 0.053), (0.18, 0.057), (0.35, 0.055), (0.7, 0.043), (1, 0.036)])
-        mb.ellipsoid((0.102 * s, 0.37, -0.016), (0.050, 0, 0), (0, 0.10, 0), (0, 0, 0.050), nu=24, nv=12)
+        mb.tube(K, A, [(0, 0.050), (0.18, 0.054), (0.35, 0.052), (0.7, 0.040), (1, 0.034)])
+        mb.ellipsoid((0.102 * s, 0.37, -0.016), (0.047, 0, 0), (0, 0.10, 0), (0, 0, 0.047), nu=24, nv=12)
         mb.sphere(A, 0.037, 24, 12)
         # feet: heel z -0.06, toe z +0.21, width 0.10, sole clipped at y = 0
         mb.ellipsoid((0.110 * s, 0.040, -0.012), (0.043, 0, 0), (0, 0.050, 0), (0, 0, 0.048), nu=24, nv=12)
@@ -307,8 +308,8 @@ def shell(mb, u0, u1, nu, vmin_fn, vmax_fn, nv, off_fn, inner=-0.006, closed=Fal
 
 
 D = math.radians
-HAIRLINE = [(0, 70), (25, 70), (45, 75), (60, 86), (67, 105), (81, 105), (87, 80), (110, 78),
-            (122, 94), (145, 113), (180, 121)]
+HAIRLINE = [(0, 73), (25, 74), (45, 79), (60, 89), (67, 103), (81, 103), (87, 90), (110, 90),
+            (122, 100), (145, 116), (180, 124)]
 PART_X = 0.034  # side part on the figure's left (+X)
 
 
@@ -366,25 +367,117 @@ def beard_off(u, v, va, vb):
     return off * (1 - m) - 0.0045 * m
 
 
+def curly_base_off(u, v, va, vb):
+    p = head_point(u, v)
+    rel = p - HEAD_C
+    off = 0.012 + 0.004 * smoothstep(-0.02, 0.08, rel.y)
+    off += 0.026 * math.exp(-((v - D(18)) / D(42)) ** 2)          # volume on top
+    off += 0.010 * math.exp(-(u / D(50)) ** 2) * math.exp(-((v - D(50)) / D(25)) ** 2)  # front lift
+    t = smoothstep(0.0, D(16), vb - v)
+    return 0.002 + (off - 0.002) * t
+
+
+def add_curls(mb, rng, vmin_fn, vmax_fn, off_fn, spacing, rmin, rmax, sink, margin=D(3)):
+    """Scatter small spheres over the hair shell: the union reads as a mop of curls."""
+    R = 0.11
+    v = D(3)
+    while v < D(130):
+        circ = 2 * math.pi * R * max(math.sin(v), 0.05)
+        n = max(1, int(round(circ / spacing)))
+        for i in range(n):
+            u = -math.pi + 2 * math.pi * (i + rng.random()) / n
+            vv = v + (rng.random() - 0.5) * spacing / R
+            va, vb = vmin_fn(u), vmax_fn(u)
+            if vv < va or vv > vb - margin:
+                continue
+            r = rmin + (rmax - rmin) * rng.random()
+            mb.sphere(head_point(u, vv, off_fn(u, vv, va, vb) - sink), r, 14, 8)
+        v += spacing / R * 0.9
+
+
 def build_hair_full():
+    import random
+    rng = random.Random(11)
     mb = MB()
-    shell(mb, -math.pi, math.pi, 120, lambda u: 0.0, lambda u: D(lerp_table(HAIRLINE, math.degrees(u))),
-          36, hair_full_off, inner=-0.004, closed=True)
+    vmax = lambda u: D(lerp_table(HAIRLINE, math.degrees(u)))  # noqa: E731
+    shell(mb, -math.pi, math.pi, 120, lambda u: 0.0, vmax, 36, curly_base_off, inner=-0.004, closed=True)
+    add_curls(mb, rng, lambda u: 0.0, vmax, curly_base_off, 0.021, 0.012, 0.019, 0.006)
+    # loose curls falling onto the forehead and over the tops of the ears
+    for k in range(16):
+        u = D(-60 + 120 * (k + rng.random()) / 16)
+        vb = vmax(u)
+        vv = vb + D(0.5 + 3.5 * rng.random())
+        mb.sphere(head_point(u, vv, 0.005), 0.009 + 0.004 * rng.random(), 14, 8)
+    for s_ in (1, -1):
+        for k in range(7):
+            u = s_ * D(84 + 34 * (k + rng.random()) / 7)
+            vv = vmax(u) + D(1 + 4 * rng.random())
+            mb.sphere(head_point(u, vv, 0.004), 0.008 + 0.003 * rng.random(), 14, 8)
     return mb
+
+
+def capped_off(u, v, va, vb):
+    t = smoothstep(0.0, D(10), vb - v) * smoothstep(0.0, D(5), v - va)
+    return 0.002 + 0.004 * t
 
 
 def build_hair_capped():
+    import random
+    rng = random.Random(5)
     mb = MB()
-    shell(mb, -math.pi, math.pi, 120, lambda u: CAP_V,
-          lambda u: max(CAP_V + D(1), D(lerp_table(HAIRLINE, math.degrees(u)))),
-          12, hair_capped_off, closed=True)
+    vmin = lambda u: CAP_V  # noqa: E731
+    vmax = lambda u: max(CAP_V + D(1), D(lerp_table(HAIRLINE, math.degrees(u))))  # noqa: E731
+    # base band only where the hairline is clearly below the cap line; elsewhere sink it into the head
+    def off(u, v, va, vb):
+        sink = smoothstep(CAP_V + D(2), CAP_V + D(7), vb)
+        return capped_off(u, v, va, vb) * sink - 0.0045 * (1 - sink)
+    shell(mb, -math.pi, math.pi, 120, vmin, vmax, 12, off, closed=True)
+    # curls poking out under the cap at the sides and back
+    for k in range(90):
+        u = -math.pi + 2 * math.pi * (k + rng.random()) / 90
+        vb = vmax(u)
+        if vb < CAP_V + D(6):
+            continue
+        vv = CAP_V + D(3) + (vb - CAP_V - D(4)) * rng.random()
+        mb.sphere(head_point(u, vv, 0.002), 0.007 + 0.003 * rng.random(), 12, 8)
     return mb
 
 
-def build_beard():
+STUBBLE_TOP = [(0, 106), (16, 107), (28, 111), (42, 113), (56, 107), (66, 101), (80, 99)]
+STUBBLE_BOT = [(0, 164), (30, 157), (55, 145), (70, 131), (80, 121)]
+
+
+def build_stubble():
+    """Light stubble: a thin sheet hugging the jaw, chin and upper lip, mouth left open."""
     mb = MB()
-    shell(mb, -D(84), D(84), 64, lambda u: D(lerp_table(BEARD_TOP, math.degrees(u))),
-          lambda u: D(lerp_table(BEARD_BOT, math.degrees(u))), 28, beard_off, closed=False)
+    nu, nv = 76, 30
+    u0, u1 = -D(80), D(80)
+    rows = []
+    for i in range(nu + 1):
+        u = u0 + (u1 - u0) * i / nu
+        va = D(lerp_table(STUBBLE_TOP, math.degrees(u)))
+        vb = D(lerp_table(STUBBLE_BOT, math.degrees(u)))
+        row = []
+        for j in range(nv + 1):
+            v = va + (vb - va) * j / nv
+            row.append((u, v))
+        rows.append(row)
+    base = len(mb.v)
+    for row in rows:
+        for (u, v) in row:
+            edge = min(1.0, (D(80) - abs(u)) / D(8))
+            # the mouth sinks under the skin, so the opening's edge is a smooth curve
+            m = math.exp(-((u / D(16)) ** 2 + ((v - D(118.5)) / D(4.0)) ** 2) ** 2)
+            mb.v.append(head_point(u, v, (0.0016 + 0.0012 * max(0.0, edge)) * (1 - m) - 0.004 * m))
+    m1 = nv + 1
+    for i in range(nu):
+        for j in range(nv):
+            uc = u0 + (u1 - u0) * (i + 0.5) / nu
+            vc = (rows[i][j][1] + rows[i][j + 1][1]) * 0.5
+            if (uc / D(12)) ** 2 + ((vc - D(118.5)) / D(2.8)) ** 2 < 1.0:
+                continue  # deep inside the mouth: drop the hidden faces
+            a = base + i * m1 + j
+            mb.f.append((a, a + m1, a + m1 + 1, a + 1))
     return mb
 
 
@@ -581,13 +674,18 @@ def main():
     split_body(body, skin)
 
     for name, builder, target, voxel in (("hair_full", build_hair_full, HAIR_TRIS, 0.0028),
-                                          ("hair_capped", build_hair_capped, CAPPED_TRIS, 0.0025),
-                                          ("beard", build_beard, BEARD_TRIS, 0.0025)):
+                                          ("hair_capped", build_hair_capped, CAPPED_TRIS, 0.0025)):
         ob = builder().to_object(name)
-        remesh_smooth_decimate(ob, voxel, 4, 0.5, target)
+        remesh_smooth_decimate(ob, voxel, 2, 0.5, target)
         ob.data.shade_smooth()
         ob.data.materials.append(hair)
         print(name, tri_count(ob))
+    stubble = make_material("stubble", STUBBLE_SRGB, 0.95)
+    ob = build_stubble().to_object("beard")
+    bake(ob, [("SMOOTH", dict(factor=0.5, iterations=2))])
+    ob.data.shade_smooth()
+    ob.data.materials.append(stubble)
+    print("beard (stubble)", tri_count(ob))
 
     total = sum(tri_count(o) for o in bpy.context.scene.objects if o.type == "MESH")
     print("TOTAL TRIS", total)
