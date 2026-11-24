@@ -14,7 +14,7 @@ plus avatar.glb and wardrobe.glb when both exist.
 ## Format
 
 - glTF binary, **Draco compressed** (`KHR_draco_mesh_compression`), plus `KHR_materials_emissive_strength`.
-  The web GLTFLoader needs a DRACOLoader. About 170 KB, about 37k triangles.
+  The web GLTFLoader needs a DRACOLoader (the web ships three's decoder at /draco/). About 175 KB, about 37k triangles.
 - Metres, Y up, audience toward +Z. All transforms applied (meshes sit at identity).
 - No lights, no cameras. Hooks are empty nodes (plain `Object3D` in three.js).
 
@@ -26,6 +26,8 @@ plus avatar.glb and wardrobe.glb when both exist.
 - Podium at x 2.6, z -0.6 (turned 14° toward centre). Floor wedges at x ±2.2 and ±3.7, z 2.15.
 - Seats: 9 rows, z 4.5..12 (slight arc), centre aisle at x -0.7..0.7.
 - x -1.5..1.5 on the riser is kept clear for the avatar.
+- Hall: side walls at x ±12, back wall at z 18, black drape at z -5.2, side masking at x ±8.5.
+  Exit signs on the back and side walls, warm sconces, aisle step lights (all emissive, always on).
 
 ## Hooks (empties, web coordinates)
 
@@ -54,10 +56,22 @@ Spot positions sit at the fixture lens; check_glb.py prints the exact values.
 | light_cone | light_cones | Open cones from every moving head, UV v = 0 at the lens, 1 at the far end (use it to fade). Make additive + transparent in the web |
 
 Other materials (dark, static): stage_deck, stage_fascia, floor_house, drape, bezel, truss,
-fixture_metal, fixture_lens, podium, podium_top, mic_metal, monitor, monitor_grille, seat, audience.
+fixture_metal, fixture_lens, podium, podium_top, mic_metal, monitor, monitor_grille, seat, audience,
+turntable, house_wall, exit_sign (emissive green), aisle_light (emissive warm).
 
 ## Meshes
 
 riser, led_edge_strip, stairs, house_floor, drape, center_mark, turntable, led_wall, led_wall_frame,
-led_pillars, truss, fixtures, light_cones, podium, floor_monitors, audience_seats, audience_people.
+led_pillars, truss, fixtures, light_cones, podium, floor_monitors, audience_seats, audience_people,
+house_walls, house_lights. light_cones holds 12 beams: 3 hero spots + 4 washes on the front truss,
+5 back lights on the upstage span raking onto the deck.
+
+## Hero render
+
+render_hero.py imports the three GLBs, hides `defaultHidden` plus the `hides` of each worn garment
+that is present (top_tee, outer_blazer, bottom_wide, shoe_sneaker), colours them from the brief,
+puts HRISHIKESH on the LED wall as emissive text, lights with warm front-truss spots, a front-of-house
+follow spot, blue/violet washes and coloured beams, then adds compositor bloom. About 1 minute on
+the M4 GPU at 128 samples. With `--stage-only` (or when avatar/wardrobe are missing) it renders the
+empty stage with the spots on the centre mark.
 Audience seats and people are each one merged mesh (one draw call each).
