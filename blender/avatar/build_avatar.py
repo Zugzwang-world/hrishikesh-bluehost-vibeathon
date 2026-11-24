@@ -29,7 +29,7 @@ HAIR_ROUGH = 0.78
 # ---------------------------------------------------------------- budgets
 BODY_TRIS = 21500
 HAIR_TRIS = 9500
-CAPPED_TRIS = 2600
+CAPPED_TRIS = 3200
 BEARD_TRIS = 2600
 
 # ---------------------------------------------------------------- landmarks (glTF frame)
@@ -419,7 +419,7 @@ def build_hair_full():
 
 def capped_off(u, v, va, vb):
     t = smoothstep(0.0, D(10), vb - v) * smoothstep(0.0, D(5), v - va)
-    return 0.002 + 0.004 * t
+    return 0.002 + 0.006 * t
 
 
 def build_hair_capped():
@@ -434,13 +434,14 @@ def build_hair_capped():
         return capped_off(u, v, va, vb) * sink - 0.0045 * (1 - sink)
     shell(mb, -math.pi, math.pi, 120, vmin, vmax, 12, off, closed=True)
     # curls poking out under the cap at the sides and back
-    for k in range(90):
-        u = -math.pi + 2 * math.pi * (k + rng.random()) / 90
-        vb = vmax(u)
-        if vb < CAP_V + D(6):
-            continue
-        vv = CAP_V + D(3) + (vb - CAP_V - D(4)) * rng.random()
-        mb.sphere(head_point(u, vv, 0.002), 0.007 + 0.003 * rng.random(), 12, 8)
+    for row in range(3):
+        for k in range(110):
+            u = -math.pi + 2 * math.pi * (k + rng.random()) / 110
+            vb = vmax(u)
+            if vb < CAP_V + D(8) or abs(u) < D(100):
+                continue  # curls only behind the ears; the sideburns stay flat
+            vv = CAP_V + D(2.5) + (vb - CAP_V - D(4.5)) * (row + rng.random()) / 3
+            mb.sphere(head_point(u, vv, 0.0035), 0.0075 + 0.003 * rng.random(), 12, 8)
     return mb
 
 
