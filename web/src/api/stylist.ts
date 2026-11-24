@@ -2,9 +2,12 @@
 // askStylist / stageCheck call the Vercel functions and never throw: on any failure they fall back to
 // a local keyword matcher / rules engine. computeStageMetrics is pure code (WCAG contrast etc.).
 import type { Catalog, Look, Product, StageCheckResult, StageMetrics, StylistInput, StylistResult } from './types'
-import { DEFAULT_LOOK, REQUIRED, SLOTS, type Slot } from '../config'
+import { DEFAULT_LOOK, REQUIRED, SLOTS, STAGE_READY, type Slot } from '../config'
 
 const TIMEOUT_MS = 9000
+
+/** The real stage wash runs cobalt to ultraviolet. */
+export const STAGE_WASH = { cobalt: '#2D4BFF', ultraviolet: '#7A5CFF' }
 
 // ---------- helpers ----------
 
@@ -35,7 +38,7 @@ function normalizeLook(look: Look | undefined | null, catalog: Catalog, fallback
     if (out[slot]) continue
     out[slot] =
       valid(slot, fallback?.[slot]) ??
-      DEFAULT_LOOK.map((s) => valid(slot, s)).find(Boolean) ??
+      [...(catalog?.defaultLook ?? []), ...DEFAULT_LOOK].map((s) => valid(slot, s)).find(Boolean) ??
       (catalog?.products ?? []).find((p) => p.slot === slot)?.sku ??
       null
   }
@@ -99,7 +102,33 @@ const SYNONYMS: Record<string, string[]> = {
 const STOP = new Set(['a', 'an', 'the', 'my', 'me', 'i', 'and', 'with', 'in', 'on', 'for', 'of', 'to', 'some', 'something', 'want',
   'like', 'give', 'make', 'put', 'please', 'look', 'outfit', 'wear', 'wearing', 'pair', 'it', 'this', 'that', 'is', 'be', 'at', 'or', 'from', 'by'])
 
-const FESTIVE = ['KC-010', 'RS-003', 'IL-007', 'KB-004', 'LL-006']
+// House rules (mirrored in web/api/stylist.ts): demo-critical picks that both the model and the keyword path must land.
+const PINS: { re: RegExp; slot: Slot; sku: string; why: string }[] = [
+  { re: /\bwhite (oxford )?shirt\b/, slot: 'top', sku: 'KT-001', why: 'the crisp white Oxford you asked for' },
+  { re: /\bred (six panel )?cap\b/, slot: 'headwear', sku: 'LL-001', why: 'the red cap you asked for' },
+  { re: /\bbaggy\b|\bmy jeans\b|\bjeans vibe\b/, slot: 'bottom', sku: 'SW-001', why: 'keeps your baggy-jeans vibe' },
+]
+const STAGE_RE = /\b(stage|presenting|present|presentation|keynote|talk|speaker|speech|conference|tour)\b/
+const SHADES_RE = /\b(shades|sunglasses|sunnies)\b/
+const negated = (text: string, words: string) => new RegExp(`\\b(no|without|skip|drop|lose|remove|ditch) (the |my )?(${words})\\b`).test(text)
+
+/** text = tokenize(prompt).join(' ') padded with spaces. Calls set() for every rule that fires; returns whether it is a stage request. */
+function applyHouseRules(text: string, has: (sku: string) => boolean, set: (slot: Slot, sku: string, why: string) => void): boolean {
+  for (const pin of PINS) if (pin.re.test(text) && has(pin.sku)) set(pin.slot, pin.sku, pin.why)
+  const stage = STAGE_RE.test(text)
+  if (stage) {
+    // Only when he did not name a layer or a watch himself ("blazer for my keynote" keeps the blazer).
+    if (!/\b(overshirt|layer|jacket|coat|blazer|blazers|suit|outerwear)\b/.test(text) && has('KT-006')) set('outerwear', 'KT-006', 'a light linen layer that frames you on stage')
+    if (!/\bwatch(es)?\b/.test(text) && has('SH-001')) set('watch', 'SH-001', 'a gold digital watch that catches the spots')
+  }
+  if (SHADES_RE.test(text) && has('LL-007')) set('eyewear', 'LL-007', 'the shades you asked for')
+  else if (!negated(text, 'glasses|specs|frames|eyewear') && has('LL-006')) set('eyewear', 'LL-006', 'your own gold hex frames stay on')
+  return stage
+}
+
+function tagged(slot: Slot, tag: string, catalog: Catalog): string | null {
+  return catalog.products.find((p) => p.slot === slot && p.tags.includes(tag))?.sku ?? null
+}
 
 function tokenize(s: string): string[] {
   return (s || '')
@@ -107,7 +136,7 @@ function tokenize(s: string): string[] {
     .replace(/&/g, ' and ')
     .replace(/off-white/g, 'offwhite')
     .replace(/t-shirt/g, 'tshirt')
-    .replace(/[^a-z0-9\s-]/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter(Boolean)
 }
@@ -168,17 +197,12 @@ export function keywordStylist(input: StylistInput, catalog: Catalog): StylistRe
   // 1. Themes
   const allBlack = /\b(all|head to toe|total|full|monochrome)[ -]?black\b|\bblackout\b|\ball-black\b/.test(text)
   const festive = /\b(festive|diwali|deepavali|wedding|celebration|pooja|puja|ethnic|traditional|sangeet)\b/.test(text)
-  const stage = /\b(stage|keynote|talk|presenting|present|presentation|conference|speaker|speech)\b/.test(text)
   if (allBlack) {
     for (const slot of SLOTS) { const b = blackFor(slot, catalog); if (b) set(slot, b, 'all black, head to toe') }
     title = 'All black, stage-ready'
   } else if (festive) {
-    for (const sku of FESTIVE) { const p = skus.get(sku); if (p) set(p.slot, sku, 'festive pick for Bangalore') }
-    title = 'Festive in Bangalore'
-  }
-  if (stage && !allBlack && !festive) {
-    if (skus.get('RS-001')) set('outerwear', 'RS-001', 'a structured blazer reads sharp under stage lights')
-    title = 'Keynote-ready'
+    for (const slot of SLOTS) { const f = tagged(slot, 'festive', catalog); if (f) set(slot, f, 'a festive pick for Bengaluru') }
+    title = 'Festive in Bengaluru'
   }
 
   // 2. Explicit slot mentions: "red cap", "white shirt", "baggy trousers"
@@ -222,9 +246,17 @@ export function keywordStylist(input: StylistInput, catalog: Catalog): StylistRe
       if (best && best.score >= 2 && best.sku !== look[slot]) set(slot, best.sku, `matches "${words.join(' ')}"`)
     }
     if (!reasons.size && event.some((w) => w === 'diwali' || w === 'festive' || w === 'wedding')) {
-      for (const sku of FESTIVE) { const p = skus.get(sku); if (p) set(p.slot, sku, 'festive pick for the occasion') }
-      title = 'Festive in Bangalore'
+      for (const slot of SLOTS) { const f = tagged(slot, 'festive', catalog); if (f) set(slot, f, 'a festive pick for the occasion') }
+      title = 'Festive in Bengaluru'
     }
+  }
+
+  // 5. House rules last, so the demo picks always win
+  const stage = applyHouseRules(text, (sku) => skus.has(sku), set)
+  if (stage && !allBlack && !festive) {
+    const ready = catalog.looks?.find((l) => l.title === STAGE_READY.title)?.skus ?? STAGE_READY.skus
+    const worn = new Set(Object.values(look))
+    title = ready.every((sku) => worn.has(sku)) ? STAGE_READY.title : 'Stage-ready'
   }
 
   const final = normalizeLook(look, catalog, current)
@@ -233,7 +265,7 @@ export function keywordStylist(input: StylistInput, catalog: Catalog): StylistRe
     const sku = final[slot]
     if (!sku) continue
     const p = skus.get(sku)!
-    notes.push({ sku, why: `${p.name} in ${p.colorName} from ${merchantName(catalog, p.merchant)}: ${why}.` })
+    notes.push({ sku, why: `${p.name} from ${merchantName(catalog, p.merchant)}${p.oneOfOne === false ? '' : ', 1 of 1'}: ${why}.` })
   }
   return {
     title: title || (notes.length ? 'Your look, tuned' : 'Your look'),
@@ -334,7 +366,7 @@ export function computeStageMetrics(look: Look, catalog: Catalog, ledWallColor: 
     (p, i): p is Product => !!p && p.slot === SLOTS[i],
   )
   const get = (slot: Slot) => items.find((p) => p.slot === slot)
-  const led = /^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(String(ledWallColor || '')) ? ledWallColor : '#0B1020'
+  const led = /^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(String(ledWallColor || '')) ? ledWallColor : STAGE_WASH.cobalt
   const outer = get('outerwear')
   const top = get('top')
   const front = outer ?? top
@@ -383,7 +415,7 @@ function bestContrastSwap(look: Look, catalog: Catalog, led: string): StageCheck
 }
 
 export function rulesStageCheck(look: Look, metrics: StageMetrics, catalog: Catalog): StageCheckResult {
-  const m = metrics ?? computeStageMetrics(look, catalog, '#0B1020')
+  const m = metrics ?? computeStageMetrics(look, catalog, STAGE_WASH.cobalt)
   const skus = bySku(catalog)
   const front = look?.outerwear ? skus.get(look.outerwear) : look?.top ? skus.get(look.top) : undefined
   const frontName = front ? front.name.toLowerCase() : 'top'
