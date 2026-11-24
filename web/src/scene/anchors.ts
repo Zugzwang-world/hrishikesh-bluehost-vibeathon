@@ -27,7 +27,7 @@ export const TALK_TITLE = 'Shipping with AI · Bluehost Bangalore'
 export const SPEAKER = 'HRISHIKESH'
 
 // Shared mutable turntable state (no per-frame allocations, no React renders).
-export const turntable = { yaw: 0, vel: 0, dragging: false, lastInteract: 0 }
+export const turntable = { yaw: 0, vel: 0, dragging: false, lastInteract: 0, faceAt: -1e9 }
 
 export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 export const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t)

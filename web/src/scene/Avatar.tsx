@@ -1,4 +1,4 @@
-import { Component, Suspense, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Component, Suspense, useEffect, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import { Box3, Group, Matrix4, Mesh, MeshStandardMaterial, Object3D, Vector3, type Material } from 'three'
@@ -183,6 +183,9 @@ export function Avatar() {
   const hasAvatar = useAssetExists(AVATAR_URL)
   const hasWardrobe = useAssetExists(WARDROBE_URL)
   const root = useRef<Group>(null)
+  // swing the avatar to face the camera whenever the look changes
+  const first = useRef(true)
+  useEffect(() => { if (first.current) { first.current = false; return } turntable.faceAt = performance.now() }, [items])
   const st = useRef({ mode: 'fit', t0: 0, fromYaw: 0, toYaw: 0, from: new Vector3().copy(ANCHORS.avatar_fit) })
 
   useFrame(({ clock }, dt) => {
@@ -206,9 +209,18 @@ export function Avatar() {
       const k = easeInOutCubic(clamp01(t / 1.2))
       g.position.lerpVectors(s.from, ANCHORS.avatar_fit, k)
       if (!turntable.dragging) {
-        turntable.vel *= Math.pow(0.04, dt)
-        const idle = performance.now() - turntable.lastInteract > 1800
-        turntable.yaw += (turntable.vel + (idle ? 0.22 : 0)) * dt
+        const pnow = performance.now()
+        if (pnow - turntable.faceAt < 1500) {
+          const twoPi = Math.PI * 2
+          const target = Math.round(turntable.yaw / twoPi) * twoPi
+          turntable.yaw += (target - turntable.yaw) * Math.min(1, dt * 5)
+          turntable.vel = 0
+          turntable.lastInteract = pnow
+        } else {
+          turntable.vel *= Math.pow(0.04, dt)
+          const idle = pnow - turntable.lastInteract > 2200
+          turntable.yaw += (turntable.vel + (idle ? 0.22 : 0)) * dt
+        }
       }
     }
     g.rotation.y = turntable.yaw
