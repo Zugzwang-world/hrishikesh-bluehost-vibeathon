@@ -1161,8 +1161,9 @@ def build_head_beanie(body, under):
     top = cy + ry + 0.02
     bm = bmesh.new()
     dome(bm, (cx, base, cz), rx + 0.01, top - base, rz + 0.01, p=2.3)
-    loft(bm, [hring(cx, base - 0.006, cz, rx + 0.016, rz + 0.016), hring(cx, base + 0.06, cz, rx + 0.016, rz + 0.016)],
-         40, False, False)  # folded cuff
+    loft(bm, [hring(cx, base - 0.008, cz, rx + 0.021, rz + 0.021), hring(cx, base + 0.012, cz, rx + 0.024, rz + 0.024),
+              hring(cx, base + 0.05, cz, rx + 0.022, rz + 0.022), hring(cx, base + 0.056, cz, rx + 0.014, rz + 0.014)],
+         40, False, False)  # folded cuff, rolled edge on top
     ob = bm_to_obj("head_beanie", bm)
     return hat_finish(ob, body, hv, 0.008)
 
@@ -1170,18 +1171,16 @@ def build_head_beanie(body, under):
 def build_head_bucket(body, under):
     hv = head_volume()
     cx, cy, cz, rx, ry, rz = hv
-    base = cy + 0.02
-    top = cy + ry + 0.012
+    base = cy + 0.03
+    top = cy + ry + 0.014
     RX, RZ = rx + 0.01, rz + 0.01
     bm = bmesh.new()
-    rings = [hring(cx, base - 0.032, cz, RX + 0.07, RZ + 0.066), hring(cx, base - 0.016, cz, RX + 0.048, RZ + 0.046),
-             hring(cx, base - 0.002, cz, RX + 0.006, RZ + 0.006)]
-    k, p_ = 10, 3.0
-    for i in range(k + 1):  # crown, one continuous surface with the brim
-        phi = (math.pi / 2) * i / k
-        yy = base + (top - base) * math.sin(phi) ** (2.0 / p_)
-        r = max(math.cos(phi) ** (2.0 / p_), 1e-3)
-        rings.append(hring(cx, yy, cz, RX * r, RZ * r))
+    # brim (angled down) -> crisp crease -> straight tapered crown -> soft flat top
+    rings = [hring(cx, base - 0.022, cz, RX + 0.068, RZ + 0.064), hring(cx, base - 0.009, cz, RX + 0.04, RZ + 0.038),
+             hring(cx, base - 0.001, cz, RX + 0.007, RZ + 0.007), hring(cx, base + 0.004, cz, RX, RZ)]
+    h = top - base
+    for f, sc in ((0.35, 0.975), (0.65, 0.945), (0.85, 0.9), (0.95, 0.8), (1.0, 0.55)):
+        rings.append(hring(cx, base + h * f, cz, RX * sc, RZ * sc))
     loft(bm, rings, 40, cap0=False, cap1=True)
     ob = bm_to_obj("head_bucket", bm)
     return hat_finish(ob, body, hv, 0.006)
