@@ -99,6 +99,9 @@ def build_materials():
     mat("monitor_grille", (0.03, 0.03, 0.032), rough=0.9, metal=0.4)
     mat("seat", (0.028, 0.028, 0.034), rough=0.95)
     mat("audience", (0.006, 0.006, 0.008), rough=0.9)
+    mat("house_wall", (0.014, 0.014, 0.017), rough=0.95)
+    mat("exit_sign", (0.05, 0.4, 0.12), rough=0.5, emit=(0.15, 1.0, 0.35), strength=2.0)
+    mat("aisle_light", (0.3, 0.25, 0.18), rough=0.5, emit=(1.0, 0.72, 0.42), strength=1.5)
 
 
 # ---------------------------------------------------------------- mesh builder
@@ -522,6 +525,39 @@ def build_audience():
     people.finish()
 
 
+def build_house():
+    """Side and back walls of the hall, pilasters, exit signs, aisle and wall lights."""
+    h = Part("house_walls")
+    top = 9.0
+    # side walls (inner faces) and back wall
+    h.quad([(-12, FLOOR_Y, 18), (-12, FLOOR_Y, 2.0), (-12, top, 2.0), (-12, top, 18)], "house_wall")
+    h.quad([(12, FLOOR_Y, 2.0), (12, FLOOR_Y, 18), (12, top, 18), (12, top, 2.0)], "house_wall")
+    h.quad([(12, FLOOR_Y, 18), (-12, FLOOR_Y, 18), (-12, top, 18), (12, top, 18)], "house_wall")
+    # proscenium returns joining the side masking to the walls
+    h.quad([(-12, FLOOR_Y, 2.0), (-8.5, FLOOR_Y, 2.0), (-8.5, top, 2.0), (-12, top, 2.0)], "house_wall")
+    h.quad([(8.5, FLOOR_Y, 2.0), (12, FLOOR_Y, 2.0), (12, top, 2.0), (8.5, top, 2.0)], "house_wall")
+    for sx in (-1, 1):
+        for z in (5.0, 8.5, 12.0, 15.5):
+            h.box((sx * 11.85, (FLOOR_Y + top) / 2, z), (0.3, top - FLOOR_Y, 0.5), "house_wall")
+    h.finish()
+
+    l = Part("house_lights")
+    # exit signs on the back wall and on the side walls near the stage
+    for x in (-7.0, 7.0):
+        l.box((x, 2.6, 17.94), (0.42, 0.18, 0.06), "exit_sign")
+    for sx in (-1, 1):
+        l.box((sx * 11.95, 2.6, 3.2), (0.06, 0.18, 0.42), "exit_sign")
+        # warm wall sconces between pilasters
+        for z in (6.75, 10.25, 13.75):
+            l.box((sx * 11.93, 2.2, z), (0.05, 0.9, 0.08), "aisle_light")
+    # aisle step lights along the centre aisle
+    for i in range(9):
+        z = 4.5 + i * 0.92 + 0.3
+        for sx in (-1, 1):
+            l.box((sx * 0.62, FLOOR_Y + 0.12, z), (0.04, 0.05, 0.1), "aisle_light")
+    l.finish()
+
+
 def build_empties(spots):
     empty("mark_center", (0, 0, 0), 0.4, "CIRCLE")
     empty("avatar_fit", (0, 0, 1.6), 0.4, "CIRCLE")
@@ -570,6 +606,7 @@ def main():
     build_podium()
     build_monitors()
     build_audience()
+    build_house()
     build_empties(spots)
     tris = 0
     for ob in bpy.data.objects:
