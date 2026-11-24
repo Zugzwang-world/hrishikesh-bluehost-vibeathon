@@ -1307,9 +1307,6 @@ def build_glasses(name, shades):
             tube_path(bm, [G(ox, ey, fz), G(ox + 0.004 * side, ey + 0.002, fz - 0.004),
                            G((half_w + 0.003) * side, ey + 0.006, fz - 0.03), G((half_w + 0.003) * side, ey + 0.005, -0.035)],
                       0.0012, 6, closed=False)
-            # nose pad arm
-            tube_path(bm, [G((ex + 0.001 - R * 0.55) * side, ey - 0.012, fz), G(0.008 * side, ey - 0.006, fz - 0.008)],
-                      0.0008, 6, closed=False)
         ix = ex + 0.001 - R * 0.5
         tube_path(bm, [G(-ix, ey + R * 0.8, fz), G(-0.006, ey + R * 0.78 + 0.003, fz + 0.002),
                        G(0.006, ey + R * 0.78 + 0.003, fz + 0.002), G(ix, ey + R * 0.8, fz)], 0.0011, 6, closed=False)
