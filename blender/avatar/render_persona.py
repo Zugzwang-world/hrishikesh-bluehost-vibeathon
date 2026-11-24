@@ -26,6 +26,29 @@ for o in list(bpy.context.scene.objects):
     if o.name.startswith("hair_capped"):
         bpy.data.objects.remove(o)
 
+# Dress the portrait in Lane B's tee when wardrobe.glb is present (read-only use of their asset).
+WARDROBE = os.path.join(ROOT, "web", "public", "models", "wardrobe.glb")
+TOP = os.environ.get("PERSONA_TOP", "top_tee")
+if TOP and os.path.exists(WARDROBE):
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=WARDROBE)
+    tee_mat = bpy.data.materials.new("persona_top")
+    tee_mat.use_nodes = True
+    tb_ = tee_mat.node_tree.nodes.get("Principled BSDF")
+    tb_.inputs["Base Color"].default_value = (0.024, 0.026, 0.032, 1.0)
+    tb_.inputs["Roughness"].default_value = 0.85
+    for o in set(bpy.data.objects) - before:
+        if o.type != "MESH":
+            continue
+        if o.name.split(".")[0] != TOP:
+            bpy.data.objects.remove(o)
+        else:
+            o.data.materials.clear()
+            o.data.materials.append(tee_mat)
+    for o in list(bpy.data.objects):
+        if o.name.split(".")[0] in ("body_torso", "body_upperarm_L", "body_upperarm_R"):
+            bpy.data.objects.remove(o)
+
 sc = bpy.context.scene
 for eng in ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT", "CYCLES"):
     try:

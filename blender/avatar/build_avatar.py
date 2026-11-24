@@ -307,7 +307,7 @@ def shell(mb, u0, u1, nu, vmin_fn, vmax_fn, nv, off_fn, inner=-0.006, closed=Fal
 
 
 D = math.radians
-HAIRLINE = [(0, 66), (25, 67), (45, 73), (60, 84), (68, 100), (80, 100), (86, 80), (110, 78),
+HAIRLINE = [(0, 70), (25, 70), (45, 75), (60, 84), (68, 100), (80, 100), (86, 80), (110, 78),
             (122, 94), (145, 113), (180, 121)]
 PART_X = 0.034  # side part on the figure's left (+X)
 
@@ -334,7 +334,7 @@ def hair_full_off(u, v, va, vb):
         off -= 0.0022 * side * (0.5 + 0.5 * math.cos(rel.y * 260 + rel.z * 40)) ** 2
     # taper to the hairline
     t = smoothstep(0.0, D(18), vb - v)
-    return 0.0018 + (off - 0.0018) * t
+    return 0.0008 + (off - 0.0008) * t
 
 
 def hair_capped_off(u, v, va, vb):
@@ -369,7 +369,7 @@ def beard_off(u, v, va, vb):
 def build_hair_full():
     mb = MB()
     shell(mb, -math.pi, math.pi, 120, lambda u: 0.0, lambda u: D(lerp_table(HAIRLINE, math.degrees(u))),
-          36, hair_full_off, closed=True)
+          36, hair_full_off, inner=-0.004, closed=True)
     return mb
 
 
