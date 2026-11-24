@@ -50,6 +50,7 @@ Spot positions sit at the fixture lens; check_glb.py prints the exact values.
 | Material | Mesh | Use |
 | --- | --- | --- |
 | led_wall | led_wall | Single quad, UV 0..1 over the full screen. Set map/emissiveMap at runtime. glTF UV convention: use `texture.flipY = false` for a canvas texture to read upright. |
+| led_wall_side | led_side_screens | Two IMAG side screens (3.2 x 1.8 m, 16:9) at x ±6.9, y 3.1, z 0, turned 25° to the house. Same UV layout as led_wall; the web's `startsWith('led_wall')` already mirrors the main wall content onto them |
 | led_strip | led_edge_strip, led_pillars, podium accent | Emissive blue (#1A6BFF-ish); turn up in Showtime |
 | center_mark | center_mark | Glowing ring, dot and ticks at mark_center |
 | turntable_ring | turntable | Faint ring at avatar_fit (the turntable disc itself is `turntable`, flush at y 0.0015) |
@@ -62,7 +63,7 @@ turntable, house_wall, exit_sign (emissive green), aisle_light (emissive warm).
 ## Meshes
 
 riser, led_edge_strip, stairs, house_floor, drape, center_mark, turntable, led_wall, led_wall_frame,
-led_pillars, truss, fixtures, light_cones, podium, floor_monitors, audience_seats, audience_people,
+led_pillars, led_side_screens, truss, fixtures, light_cones, podium, floor_monitors, audience_seats, audience_people,
 house_walls, house_lights. light_cones holds 12 beams: 3 hero spots + 4 washes on the front truss,
 5 back lights on the upstage span raking onto the deck.
 

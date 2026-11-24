@@ -84,6 +84,7 @@ def build_materials():
     mat("drape", (0.004, 0.004, 0.005), rough=1.0)
     mat("bezel", (0.012, 0.012, 0.013), rough=0.4, metal=0.5)
     mat("led_wall", (0.0, 0.0, 0.0), rough=0.3, emit=(0.02, 0.06, 0.20), strength=1.0)
+    mat("led_wall_side", (0.0, 0.0, 0.0), rough=0.3, emit=(0.02, 0.06, 0.20), strength=1.0)
     mat("led_strip", (0.02, 0.06, 0.15), rough=0.4, emit=(0.10, 0.42, 1.0), strength=3.0)
     mat("center_mark", (0.05, 0.10, 0.20), rough=0.4, emit=(0.35, 0.65, 1.0), strength=2.5)
     mat("turntable", (0.022, 0.022, 0.025), rough=0.35, metal=0.2)
@@ -368,6 +369,29 @@ def build_led_wall():
     lb.finish()
 
 
+def build_side_screens():
+    """IMAG side screens (16:9, 3.2 x 1.8 m) flown outside the truss towers, angled to the house.
+    Material led_wall_side: UV 0..1 like led_wall, so the web can mirror the main wall content."""
+    p = Part("led_side_screens")
+    sw, sh = 3.2, 1.8
+    for sx in (-1, 1):
+        th = 25.0 * -sx                     # left screen turns toward +x, right toward -x
+        a = math.radians(th)
+        c = Vector((sx * 6.9, 3.1, 0.0))
+        r = Vector((math.cos(a), 0, -math.sin(a)))
+        n = Vector((math.sin(a), 0, math.cos(a)))
+        up = Vector((0, 1, 0))
+        bl, br = c - r * sw / 2 - up * sh / 2, c + r * sw / 2 - up * sh / 2
+        tr, tl = c + r * sw / 2 + up * sh / 2, c - r * sw / 2 + up * sh / 2
+        p.quad([tuple(bl), tuple(br), tuple(tr), tuple(tl)], "led_wall_side",
+               uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
+        p.box(tuple(c - n * 0.06), (sw + 0.12, sh + 0.12, 0.1), "bezel", rot=rot_y_web(th))
+        for k in (-1, 1):
+            top = c + r * (k * sw * 0.4) + up * (sh / 2 + 0.06) - n * 0.06
+            p.cyl(tuple(top), (top.x, 12.0, top.z), 0.008, "fixture_metal", segs=4, caps=False)
+    p.finish()
+
+
 def truss_run(p, a, b, w=TRUSS_W, rc=0.024, rb=0.011, pitch=0.5):
     """Box truss between web points a, b: 4 chords and zig-zag braces on 4 faces."""
     A, B = Vector(a), Vector(b)
@@ -620,6 +644,7 @@ def main():
     build_riser()
     build_marks()
     build_led_wall()
+    build_side_screens()
     build_truss()
     spots = build_fixtures()
     build_podium()

@@ -224,7 +224,7 @@ def colour_cones():
 def tune_stage_materials():
     for m in bpy.data.materials:
         n = m.name
-        if n == "led_wall":
+        if n.startswith("led_wall"):
             led_wall_material(m)
         elif n == "light_cone":
             cone_material(m, strength=0.22)
