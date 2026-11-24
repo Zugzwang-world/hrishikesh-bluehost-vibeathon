@@ -195,6 +195,9 @@ def proxy_body():
     return ob
 
 
+HEAD = {"obj": None}
+
+
 def real_body():
     if not os.path.exists(AVATAR):
         return None
@@ -217,10 +220,39 @@ def real_body():
         c = new_obj("bodypart", me)
         c.matrix_world = o.matrix_world.copy()
         copies.append(c)
+    heads = []
+    for o in new:
+        # what stays visible under a hat: the head (which may carry baked hair) and hair_capped; hair_full is hidden
+        if o.type == "MESH" and (o.name.startswith("body_head") or o.name.startswith("hair_capped")):
+            me = bpy.data.meshes.new_from_object(o.evaluated_get(bpy.context.evaluated_depsgraph_get()))
+            c = new_obj("headpart", me)
+            c.matrix_world = o.matrix_world.copy()
+            heads.append(c)
+    if heads:
+        HEAD["obj"] = join("head_vol", heads)
     for o in new:
         if o.name in bpy.data.objects:
             bpy.data.objects.remove(o, do_unlink=True)
+    for c in copies:  # close the region cuts so the joined body is watertight
+        bm = bmesh.new()
+        bm.from_mesh(c.data)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+        bnd = [e for e in bm.edges if e.is_boundary]
+        if bnd:
+            bmesh.ops.holes_fill(bm, edges=bnd, sides=0)
+        bm.to_mesh(c.data)
+        bm.free()
     ob = join("fit_body", copies)
+    raw = ob.data.copy()
+    m = ob.modifiers.new("r", "REMESH")
+    m.mode = "VOXEL"
+    m.voxel_size = 0.005
+    apply_mods(ob)
+    if len(ob.data.vertices) < 20000:  # remesh failed: fall back to the raw parts
+        old = ob.data
+        ob.data = raw
+        bpy.data.meshes.remove(old)
+        print("WARDROBE: body remesh failed, using raw parts")
     print("WARDROBE: using real avatar body,", len(ob.data.vertices), "verts")
     return ob
 
@@ -610,7 +642,7 @@ def build_top_shirt(body, under):
         hem_cut(bm, 0.93)
         neck_cut(bm, 1.52, 1.475)
         for side in (1, -1):
-            sleeve_cut(bm, side, 0.567, 0.08)
+            sleeve_cut(bm, side, SLEEVE_T, 0.08)
 
     ob = volume_to_shell("top_shirt", build, 0.007, 5, cuts)
     fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
@@ -650,7 +682,7 @@ def build_outer(name, body, under, length_y, extra, lapel):
         hem_cut(bm, length_y)
         neck_cut(bm, 1.53, 1.49, r_reg=0.12)
         for side in (1, -1):
-            sleeve_cut(bm, side, 0.567, 0.09)
+            sleeve_cut(bm, side, SLEEVE_T, 0.09)
         front_open_cut(bm, 1.05 if lapel else 0.90, 1.50, 0.105 if lapel else 0.075, length_y, 0.07 if lapel else 0.01)
 
     ob = volume_to_shell(name, build, 0.008, 6, cuts)
@@ -704,7 +736,7 @@ def build_outer_overshirt(body, under):
     return build_outer("outer_overshirt", body, under, 0.86, 0.05, lapel=False)
 
 
-def build_bottom(name, body, wide):
+def build_bottom(name, body, wide, under=()):
     def build(bm):
         loft(bm, [hring(0, 1.06, 0, 0.165, 0.115, 2.4), hring(0, 1.00, 0, 0.17, 0.12, 2.4),
                   hring(0, 0.92, 0, 0.19 + (0.01 if wide else 0), 0.13, 2.4), hring(0, 0.84, 0, 0.18, 0.125, 2.4),
@@ -715,7 +747,8 @@ def build_bottom(name, body, wide):
                       (0.115, 0.25, 0.0, 0.094, 0.108), (0.122, 0.05, 0.0, 0.10, 0.12), (0.124, 0.0, 0.0, 0.10, 0.12)]
             else:
                 st = [(0.095, 0.86, 0.0, 0.092, 0.10), (0.10, 0.70, 0.0, 0.08, 0.088), (0.103, 0.49, 0.0, 0.06, 0.066),
-                      (0.106, 0.35, -0.01, 0.06, 0.066), (0.11, 0.12, 0.0, 0.05, 0.056), (0.11, 0.04, 0.0, 0.052, 0.058)]
+                      (0.106, 0.35, -0.01, 0.06, 0.066), (0.11, 0.17, -0.005, 0.056, 0.07), (0.11, 0.11, -0.006, 0.059, 0.08),
+                      (0.11, 0.04, -0.006, 0.059, 0.082)]
             loft(bm, [hring(x * side, y, z, a, b, 2.2) for (x, y, z, a, b) in st], 32)
 
     hem = 0.035 if wide else 0.075
@@ -727,15 +760,16 @@ def build_bottom(name, body, wide):
 
     ob = volume_to_shell(name, build, 0.006, 6, cuts)
     fit_outside(ob, [(body, 0.008)], ymin=0.16)
+    # hems are cut wide enough to swallow both shoe collars, so no push against the shoes is needed
     return finish(ob, 3200, 0.004)
 
 
 def build_bottom_wide(body, under):
-    return build_bottom("bottom_wide", body, True)
+    return build_bottom("bottom_wide", body, True, under)
 
 
 def build_bottom_slim(body, under):
-    return build_bottom("bottom_slim", body, False)
+    return build_bottom("bottom_slim", body, False, under)
 
 
 # ---------------------------------------------------------------- shoes
@@ -811,7 +845,22 @@ def build_shoe(name, body, kind):
 
 
 def build_shoe_sneaker(body, under):
-    return build_shoe("shoe_sneaker", body, "sneaker")
+    ob = build_shoe("shoe_sneaker", body, "sneaker")
+    # separate sole material so a product can have a gum sole; neutral white by default
+    sole = bpy.data.materials.get("mat_shoe_sneaker_sole") or bpy.data.materials.new("mat_shoe_sneaker_sole")
+    sole.use_nodes = True
+    bsdf = sole.node_tree.nodes.get("Principled BSDF")
+    if bsdf:
+        bsdf.inputs["Base Color"].default_value = (0.9, 0.9, 0.88, 1.0)
+        bsdf.inputs["Roughness"].default_value = 0.7
+    ob.data.materials.append(sole)
+    n = 0
+    for poly in ob.data.polygons:
+        if poly.center.z < 0.0295:
+            poly.material_index = 1
+            n += 1
+    print(f"WARDROBE:   shoe_sneaker sole faces {n}")
+    return ob
 
 
 def build_shoe_loafer(body, under):
@@ -819,18 +868,47 @@ def build_shoe_loafer(body, under):
 
 
 # ---------------------------------------------------------------- headwear
-HEAD_C = (0.0, 1.625, 0.01)
 HAT_TILT = {"head_cap": 13.0, "head_beanie": 9.0, "head_bucket": 7.0}
 
 
-def dome(bm, c, rx, ry, rz, y_cut_frac=0.0, seg=40, rings=14):
-    """Upper part of an ellipsoid (glTF radii), open at the bottom."""
+def head_volume():
+    """Ellipsoid the headwear must clear: a curly-hair allowance (~+2 cm, top ~1.79) grown to contain the
+    avatar's real head + hair above the brow. Returns (cx, cy, cz, rx, ry, rz) in glTF metres."""
+    cx, cy, cz, rx, ry, rz = 0.0, 1.635, 0.0, 0.112, 0.155, 0.122
+    ob = HEAD["obj"]
+    if ob is not None:
+        sc = 1.0
+        worst = None
+        for v in ob.data.vertices:
+            w = ob.matrix_world @ v.co
+            x, y, z = w.x, w.z, -w.y
+            if y < 1.62 or (z > 0.085 and y < 1.69):  # face, beard, ears below the hat line
+                continue
+            q = math.sqrt(((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + ((z - cz) / rz) ** 2)
+            if q > sc:
+                sc, worst = q, (round(x, 3), round(y, 3), round(z, 3))
+        rx, ry, rz = rx * sc, ry * sc, rz * sc
+        print(f"WARDROBE:   head volume scale {sc:.3f}", worst if sc > 1 else "")
+    return cx, cy, cz, rx, ry, rz
+
+
+def head_proxy_obj(hv, pad=0.0):
+    cx, cy, cz, rx, ry, rz = hv
+    bm = bmesh.new()
+    sphere(bm, G(cx, cy, cz), rx + pad, ry + pad, rz + pad, 32, 16)
+    ob = bm_to_obj("head_proxy", bm)
+    ob.hide_render = True
+    return ob
+
+
+def dome(bm, c, rx, ry, rz, y_cut_frac=0.0, seg=40, rings=14, p=2.0):
+    """Upper part of a super-ellipsoid (glTF radii), open at the bottom; p > 2 gives a fuller, rounder crown."""
     cx, cy, cz = c
     vr = []
     for i in range(rings + 1):
         phi = (math.pi / 2) * (1 - i / rings)  # from equator to pole
-        y = math.sin(phi)
-        r = math.cos(phi)
+        y = math.sin(phi) ** (2.0 / p)
+        r = math.cos(phi) ** (2.0 / p)
         vr.append((cy + ry * (y_cut_frac + (1 - y_cut_frac) * y), r))
     rings_l = [hring(cx, yy, cz, max(rx * r, 1e-4), max(rz * r, 1e-4), 2.0) for (yy, r) in vr]
     return loft(bm, rings_l, seg, cap0=False, cap1=True)
@@ -849,10 +927,36 @@ def tilt(ob, deg, pivot_y=1.70):
     ob.data.update()
 
 
+def hat_finish(ob, body, hv):
+    tilt(ob, HAT_TILT[ob.name])
+    prox = head_proxy_obj(hv)
+    targets = [(body, 0.006), (prox, 0.006)]
+    if HEAD["obj"] is not None:
+        targets.append((HEAD["obj"], 0.006))
+    fit_outside(ob, targets, maxdist=0.05)
+    delete(prox)
+    return finish(ob, 6000, 0.0)
+
+
+def solidify_subsurf(ob, th, levels=1):
+    so = ob.modifiers.new("t", "SOLIDIFY")
+    so.thickness = th
+    so.offset = 1.0
+    so.use_rim = True
+    ss = ob.modifiers.new("s", "SUBSURF")
+    ss.levels = levels
+    apply_mods(ob)
+
+
 def build_head_cap(body, under):
+    hv = head_volume()
+    cx, cy, cz, rx, ry, rz = hv
+    base = cy + 0.006
+    top = cy + ry + 0.008
+    RX, RZ = rx + 0.008, rz + 0.008
     bm = bmesh.new()
-    dome(bm, (0.0, 1.615, 0.003), 0.099, 0.155, 0.114)
-    # brim: flat-ish curved visor at the front
+    dome(bm, (cx, base, cz), RX, top - base, RZ, p=2.7)
+    # brim: curved visor at the front
     seg = 24
     rows = []
     for j in range(4):
@@ -860,66 +964,58 @@ def build_head_cap(body, under):
         row = []
         for i in range(seg + 1):
             a = math.radians(-70 + 140 * i / seg)
-            rr = 0.097 + r * 0.075 * math.cos(a * 0.9) ** 0.6
+            rr = RX * 0.985 + r * 0.078 * math.cos(a * 0.9) ** 0.6
             x = math.sin(a) * rr
-            z = 0.003 + math.cos(a) * (0.114 / 0.099) * rr
-            y = 1.628 - 0.012 * r - 0.004 * r * r
+            z = cz + math.cos(a) * (RZ / RX) * rr
+            y = base + 0.012 - 0.012 * r - 0.004 * r * r
             row.append(bm.verts.new(G(x, y, z)))
         rows.append(row)
     for r0, r1 in zip(rows[:-1], rows[1:]):
         for i in range(seg):
             bm.faces.new((r0[i], r1[i], r1[i + 1], r0[i + 1]))
     ob = bm_to_obj("head_cap", bm)
-    so = ob.modifiers.new("t", "SOLIDIFY")
-    so.thickness = 0.006
-    so.offset = 1.0
-    so.use_rim = True
-    ss = ob.modifiers.new("s", "SUBSURF")
-    ss.levels = 1
-    apply_mods(ob)
-    # button on top
+    solidify_subsurf(ob, 0.006)
     bm = bmesh.new()
     bm.from_mesh(ob.data)
-    sphere(bm, G(0, 1.770, 0.003), 0.012, 0.007, 0.012, 12, 6)
+    sphere(bm, G(cx, top + 0.004, cz), 0.012, 0.007, 0.012, 12, 6)  # button
     bm.to_mesh(ob.data)
     bm.free()
-    tilt(ob, HAT_TILT[ob.name])
-    fit_outside(ob, [(body, 0.006)], maxdist=0.04)
-    return finish(ob, 6000, 0.0)
+    return hat_finish(ob, body, hv)
 
 
 def build_head_beanie(body, under):
+    hv = head_volume()
+    cx, cy, cz, rx, ry, rz = hv
+    base = cy + 0.012
+    top = cy + ry + 0.02
     bm = bmesh.new()
-    dome(bm, (0.0, 1.605, 0.003), 0.1, 0.165, 0.115)
-    # folded cuff
-    loft(bm, [hring(0, 1.598, 0.003, 0.105, 0.119), hring(0, 1.665, 0.003, 0.105, 0.118)], 40, False, False)
+    dome(bm, (cx, base, cz), rx + 0.01, top - base, rz + 0.01, p=2.3)
+    loft(bm, [hring(cx, base - 0.006, cz, rx + 0.016, rz + 0.016), hring(cx, base + 0.06, cz, rx + 0.016, rz + 0.016)],
+         40, False, False)  # folded cuff
     ob = bm_to_obj("head_beanie", bm)
-    so = ob.modifiers.new("t", "SOLIDIFY")
-    so.thickness = 0.008
-    so.offset = 1.0
-    ss = ob.modifiers.new("s", "SUBSURF")
-    ss.levels = 1
-    apply_mods(ob)
-    tilt(ob, HAT_TILT[ob.name])
-    fit_outside(ob, [(body, 0.006)], maxdist=0.04)
-    return finish(ob, 6000, 0.0)
+    solidify_subsurf(ob, 0.008)
+    return hat_finish(ob, body, hv)
 
 
 def build_head_bucket(body, under):
+    hv = head_volume()
+    cx, cy, cz, rx, ry, rz = hv
+    base = cy + 0.02
+    top = cy + ry + 0.012
+    RX, RZ = rx + 0.01, rz + 0.01
     bm = bmesh.new()
-    dome(bm, (0.0, 1.64, 0.003), 0.101, 0.13, 0.116, y_cut_frac=0.0)
-    loft(bm, [hring(0, 1.64, 0.003, 0.101, 0.116), hring(0, 1.622, 0.003, 0.15, 0.162), hring(0, 1.605, 0.003, 0.172, 0.182)],
-         40, False, False)
+    rings = [hring(cx, base - 0.032, cz, RX + 0.07, RZ + 0.066), hring(cx, base - 0.016, cz, RX + 0.048, RZ + 0.046),
+             hring(cx, base - 0.002, cz, RX + 0.006, RZ + 0.006)]
+    k, p_ = 12, 3.0
+    for i in range(k + 1):  # crown, one continuous surface with the brim
+        phi = (math.pi / 2) * i / k
+        yy = base + (top - base) * math.sin(phi) ** (2.0 / p_)
+        r = max(math.cos(phi) ** (2.0 / p_), 1e-3)
+        rings.append(hring(cx, yy, cz, RX * r, RZ * r))
+    loft(bm, rings, 40, cap0=False, cap1=True)
     ob = bm_to_obj("head_bucket", bm)
-    so = ob.modifiers.new("t", "SOLIDIFY")
-    so.thickness = 0.006
-    so.offset = 1.0
-    ss = ob.modifiers.new("s", "SUBSURF")
-    ss.levels = 1
-    apply_mods(ob)
-    tilt(ob, HAT_TILT[ob.name])
-    fit_outside(ob, [(body, 0.006)], maxdist=0.04)
-    return finish(ob, 6000, 0.0)
+    solidify_subsurf(ob, 0.006)
+    return hat_finish(ob, body, hv)
 
 
 # ---------------------------------------------------------------- eyewear, watch, chain
@@ -947,22 +1043,107 @@ def bar(bm, a, b, r, seg=8):
     capsule(bm, a, b, r, seg)
 
 
-def build_glasses(name, shades):
-    bm = bmesh.new()
-    ey, fz = 1.63, 0.118
-    X, Y, Z = Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, -1, 0))
-    for side in (1, -1):
-        cx = 0.033 * side
-        if shades:
-            torus_ring(bm, G(cx, ey, fz), X, Y, 0.028, 0.0035, 36, 8, sx=1.15, sy=0.85)
-            # lens: flat disc
-            loft(bm, [(G(cx, ey, fz + 0.001), X, Y, 0.031, 0.023, 2.0), (G(cx, ey, fz - 0.001), X, Y, 0.031, 0.023, 2.0)], 32)
+def tube_path(bm, pts, r, rseg=6, closed=True):
+    n = len(pts)
+    rings = []
+    for i in range(n):
+        p = pts[i]
+        if closed:
+            t = (pts[(i + 1) % n] - pts[i - 1])
         else:
-            torus_ring(bm, G(cx, ey, fz), X, Y, 0.022, 0.0025, 36, 8)
-        # temple arm back to the ear
-        bar(bm, G((0.062 if shades else 0.056) * side, ey + 0.004, fz - 0.004), G(0.074 * side, ey + 0.004, fz - 0.03), 0.0025)
-        bar(bm, G(0.074 * side, ey + 0.004, fz - 0.03), G(0.088 * side, ey + 0.004, -0.04), 0.0025)
-    bar(bm, G(-0.012, ey + 0.006, fz + 0.002), G(0.012, ey + 0.006, fz + 0.002), 0.0022)  # bridge
+            t = pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]
+        t.normalize()
+        a = t.cross(Vector((0, 0, 1)))
+        if a.length < 1e-4:
+            a = t.cross(Vector((1, 0, 0)))
+        a.normalize()
+        b = t.cross(a).normalized()
+        rings.append([bm.verts.new(p + a * (r * math.cos(2 * math.pi * j / rseg)) + b * (r * math.sin(2 * math.pi * j / rseg)))
+                      for j in range(rseg)])
+    m = n if closed else n - 1
+    for i in range(m):
+        r0, r1 = rings[i], rings[(i + 1) % n]
+        for j in range(rseg):
+            k = (j + 1) % rseg
+            bm.faces.new((r0[j], r1[j], r1[k], r0[k]))
+    if not closed:
+        bm.faces.new(list(reversed(rings[0])))
+        bm.faces.new(rings[-1])
+
+
+def face_measure():
+    """Front of the face at the eyes and the bridge, and head half-width at the temples (glTF)."""
+    ey, ex = 1.63, 0.033
+    z_eye, z_bridge, half_w = 0.10, 0.105, 0.09
+    ob = HEAD["obj"]
+    if ob is not None:
+        from mathutils.bvhtree import BVHTree
+        tree = BVHTree.FromObject(ob, bpy.context.evaluated_depsgraph_get())
+        zs = []
+        for x in (ex, -ex):
+            hit = tree.ray_cast(G(x, ey, 0.5), Vector((0, 1, 0)), 1.0)[0]
+            if hit is not None:
+                zs.append(-hit.y)
+        if zs:
+            z_eye = max(zs)
+        hit = tree.ray_cast(G(0, ey + 0.008, 0.5), Vector((0, 1, 0)), 1.0)[0]
+        if hit is not None:
+            z_bridge = -hit.y
+        ws = []
+        for sd in (1, -1):
+            hit = tree.ray_cast(G(sd * 0.5, ey + 0.005, 0.0), G(-sd, 0, 0) - G(0, 0, 0), 1.0)[0]
+            if hit is not None:
+                ws.append(abs(hit.x))
+        if ws:
+            half_w = max(ws)
+    print(f"WARDROBE:   face z_eye {z_eye:.3f} z_bridge {z_bridge:.3f} half_w {half_w:.3f}")
+    return ey, ex, z_eye, z_bridge, half_w
+
+
+def build_glasses(name, shades):
+    ey, ex, z_eye, z_bridge, half_w = face_measure()
+    fz = max(z_eye + 0.016, z_bridge + 0.006)
+    bm = bmesh.new()
+    if shades:  # bold square shades: thick rounded-square rims, dark lens slabs, heavy temples
+        W, H, rr = 0.030, 0.023, 0.0032
+        for side in (1, -1):
+            cx = (ex + 0.002) * side
+            pts = []
+            for i in range(48):
+                t = 2 * math.pi * i / 48
+                x, y = superellipse(t, W, H, 5.0)
+                pts.append(G(cx + x, ey + y, fz))
+            tube_path(bm, pts, rr, 8)
+            X, Y = Vector((1, 0, 0)), Vector((0, 0, 1))
+            loft(bm, [(G(cx, ey, fz + 0.0012), X, Y, W - 0.001, H - 0.001, 5.0),
+                      (G(cx, ey, fz - 0.0012), X, Y, W - 0.001, H - 0.001, 5.0)], 48)
+            ox = cx + W * side
+            tube_path(bm, [G(ox, ey + H * 0.6, fz - 0.002), G((half_w + 0.004) * side, ey + 0.012, fz - 0.03),
+                           G((half_w + 0.004) * side, ey + 0.01, -0.035)], 0.0028, 8, closed=False)
+        tube_path(bm, [G(-(ex + 0.002 - W), ey + H * 0.55, fz + 0.001), G(0, ey + H * 0.62, fz + 0.002),
+                       G(ex + 0.002 - W, ey + H * 0.55, fz + 0.001)], 0.0032, 8, closed=False)
+    else:  # thin metal hexagonal frames
+        R, rr = 0.026, 0.0011
+        for side in (1, -1):
+            cx = (ex + 0.001) * side
+            corners = [(R * math.cos(math.radians(a)), R * 0.92 * math.sin(math.radians(a))) for a in range(0, 360, 60)]
+            pts = []
+            for i in range(6):  # 6 edges, slightly rounded corners
+                (x0, y0), (x1, y1) = corners[i], corners[(i + 1) % 6]
+                for k in range(1, 7):
+                    f = 0.08 + 0.84 * k / 7
+                    pts.append(G(cx + x0 + (x1 - x0) * f, ey + y0 + (y1 - y0) * f, fz))
+            tube_path(bm, pts, rr, 6)
+            ox = cx + R * side
+            tube_path(bm, [G(ox, ey, fz), G(ox + 0.004 * side, ey + 0.002, fz - 0.004),
+                           G((half_w + 0.003) * side, ey + 0.006, fz - 0.03), G((half_w + 0.003) * side, ey + 0.005, -0.035)],
+                      0.0012, 6, closed=False)
+            # nose pad arm
+            tube_path(bm, [G((ex + 0.001 - R * 0.55) * side, ey - 0.012, fz), G(0.008 * side, ey - 0.006, fz - 0.008)],
+                      0.0008, 6, closed=False)
+        ix = ex + 0.001 - R * 0.5
+        tube_path(bm, [G(-ix, ey + R * 0.8, fz), G(-0.006, ey + R * 0.78 + 0.003, fz + 0.002),
+                       G(0.006, ey + R * 0.78 + 0.003, fz + 0.002), G(ix, ey + R * 0.8, fz)], 0.0011, 6, closed=False)
     ob = bm_to_obj(name, bm)
     return finish(ob, 4000, 0.0)
 
@@ -975,39 +1156,57 @@ def build_eye_shades(body, under):
     return build_glasses("eye_shades", True)
 
 
-def build_watch(name, digital):
-    s, d, w, v = arm_frame(1)  # figure's LEFT arm (+X)
-    t = 0.535
+WATCH_T = 0.574  # along the left arm from the shoulder joint; long sleeves end at SLEEVE_T
+SLEEVE_T = 0.562
+
+
+def build_watch(name, digital, body=None):
+    """Watch on the figure's LEFT wrist (+X), just past the long-sleeve cuffs so it shows with every top.
+    The strap is shrunk onto the real wrist; the case faces out and a little forward."""
+    from mathutils.bvhtree import BVHTree
+    s, d, w, v = arm_frame(1)
+    t = WATCH_T
     c = s + d * t
+    tree = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get()) if body is not None else None
     bm = bmesh.new()
-    # strap: thin elliptical band around the wrist
-    tube_along(bm, s, d, w, v, [(t - 0.011, 0.034, 0.038), (t + 0.011, 0.034, 0.038)], seg=32, cap=False)
+    tube_along(bm, s, d, w, v, [(t - 0.010, 0.05, 0.05), (t + 0.010, 0.05, 0.05)], seg=40, cap=False)
+    if tree is not None:  # snug the strap onto the wrist
+        for vert in bm.verts:
+            loc, nrm, idx, dist = tree.find_nearest(vert.co, 0.08)
+            if loc is not None:
+                vert.co = loc + nrm * 0.003
     ob = bm_to_obj(name, bm)
     so = ob.modifiers.new("t", "SOLIDIFY")
-    so.thickness = 0.004
-    so.offset = 1.0
+    so.thickness = 0.0035
+    so.offset = 0.0
+    so.use_rim = True
     apply_mods(ob)
+    nrm = (w * 0.8 - v).normalized()  # outward + toward the front, readable from the audience
+    surf = 0.03
+    if tree is not None:
+        hit = tree.ray_cast(c + nrm * 0.12, -nrm, 0.2)[0]
+        if hit is not None:
+            surf = (hit - c).dot(nrm)
+    face_c = c + nrm * (surf + 0.004)
+    e2 = nrm.cross(d).normalized()
     bm = bmesh.new()
     bm.from_mesh(ob.data)
-    # face on the back of the wrist (outward = +Z front? use the top: -v points down/in); put it facing +Z (front)
-    nrm = (w * 0.8 - v).normalized()  # outward + toward the front, readable from the audience
-    face_c = c + nrm * 0.036
-    e2 = nrm.cross(d).normalized()
     if digital:
         loft(bm, [(face_c, d, e2, 0.017, 0.015, 4.0), (face_c + nrm * 0.009, d, e2, 0.017, 0.015, 4.0)], 24)
     else:
-        loft(bm, [(face_c, d, e2, 0.019, 0.019, 2.0), (face_c + nrm * 0.008, d, e2, 0.019, 0.019, 2.0)], 32)
+        loft(bm, [(face_c, d, e2, 0.019, 0.019, 2.0), (face_c + nrm * 0.008, d, e2, 0.019, 0.019, 2.0),
+                  (face_c + nrm * 0.0095, d, e2, 0.016, 0.016, 2.0)], 32)
     bm.to_mesh(ob.data)
     bm.free()
     return finish(ob, 3000, 0.0)
 
 
 def build_watch_analog(body, under):
-    return build_watch("watch_analog", False)
+    return build_watch("watch_analog", False, body)
 
 
 def build_watch_digital(body, under):
-    return build_watch("watch_digital", True)
+    return build_watch("watch_digital", True, body)
 
 
 def build_neck_chain(body, under):
@@ -1059,15 +1258,15 @@ def build_neck_chain(body, under):
 
 # ---------------------------------------------------------------- main
 ORDER = [
-    ("bottom_wide", build_bottom_wide, []),
-    ("bottom_slim", build_bottom_slim, []),
+    ("shoe_sneaker", build_shoe_sneaker, []),
+    ("shoe_loafer", build_shoe_loafer, []),
+    ("bottom_wide", build_bottom_wide, ["shoe_sneaker", "shoe_loafer"]),
+    ("bottom_slim", build_bottom_slim, ["shoe_sneaker", "shoe_loafer"]),
     ("top_tee", build_top_tee, ["bottom_wide", "bottom_slim"]),
     ("top_shirt", build_top_shirt, ["bottom_wide", "bottom_slim"]),
     ("top_oversized", build_top_oversized, ["bottom_wide", "bottom_slim"]),
     ("outer_blazer", build_outer_blazer, ["top_tee", "top_shirt", "top_oversized", "bottom_wide", "bottom_slim"]),
     ("outer_overshirt", build_outer_overshirt, ["top_tee", "top_shirt", "top_oversized", "bottom_wide", "bottom_slim"]),
-    ("shoe_sneaker", build_shoe_sneaker, []),
-    ("shoe_loafer", build_shoe_loafer, []),
     ("head_cap", build_head_cap, []),
     ("head_beanie", build_head_beanie, []),
     ("head_bucket", build_head_bucket, []),
