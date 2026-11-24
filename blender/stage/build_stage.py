@@ -18,6 +18,9 @@ import bpy
 from mathutils import Matrix, Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+import sys  # noqa: E402
+sys.path.insert(0, HERE)
+import stage_textures as stx  # noqa: E402
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(ROOT, "web", "public", "models", "stage.glb")
 
@@ -108,6 +111,36 @@ def deck_texture():
     return im
 
 
+def make_image(name, arr):
+    """arr: float sRGB (H, W, 3), row 0 = top. Packed into the .blend, exported as JPEG."""
+    import numpy as np
+    h, w, _ = arr.shape
+    rgba = np.ones((h, w, 4), dtype=np.float32)
+    rgba[..., :3] = arr[::-1]          # blender rows start at the bottom
+    im = bpy.data.images.new(name, w, h, alpha=False)
+    im.pixels.foreach_set(rgba.ravel())
+    im.update()
+    im.pack()
+    return im
+
+
+def textured(name, arr, rough=0.8, emissive=False, strength=1.0, base_dark=None):
+    """Material whose base colour (and optionally emission) is a generated image."""
+    m = mat(name, (1, 1, 1), rough=rough)
+    nt = m.node_tree
+    b = nt.nodes.get("Principled BSDF")
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = make_image(name + "_tex", arr)
+    if base_dark is not None:
+        b.inputs["Base Color"].default_value = (*base_dark, 1)
+    else:
+        nt.links.new(tex.outputs["Color"], b.inputs["Base Color"])
+    if emissive:
+        nt.links.new(tex.outputs["Color"], b.inputs["Emission Color"])
+        b.inputs["Emission Strength"].default_value = strength
+    return m
+
+
 def build_materials():
     m = mat("stage_deck", (1.0, 1.0, 1.0), rough=0.72)
     try:
@@ -123,8 +156,13 @@ def build_materials():
     mat("floor_house", (0.016, 0.016, 0.018), rough=0.92)
     mat("drape", (0.004, 0.004, 0.005), rough=1.0)
     mat("bezel", (0.012, 0.012, 0.013), rough=0.4, metal=0.5)
-    mat("led_wall", (0.0, 0.0, 0.0), rough=0.3, emit=(0.02, 0.06, 0.20), strength=1.0)
-    mat("led_wall_side", (0.0, 0.0, 0.0), rough=0.3, emit=(0.02, 0.06, 0.20), strength=1.0)
+    textured("led_wall", stx.led_wall_tex(), rough=0.3, emissive=True, strength=1.0)
+    textured("led_wall_side", stx.side_panel_tex(), rough=0.3, emissive=True, strength=1.0)
+    textured("ceiling_gobo", stx.gobo_tex(), rough=0.95, emissive=True, strength=1.0, base_dark=(0.004, 0.006, 0.02))
+    textured("qr_card", stx.qr_tex(), rough=0.6)
+    mat("ceiling_beam", (0.008, 0.01, 0.025), rough=0.8)
+    mat("cove_light", (0.05, 0.2, 0.5), rough=0.5, emit=(0.15, 0.55, 1.0), strength=2.0)
+    mat("fixture_lens_blue", (0.3, 0.4, 0.8), rough=0.1, emit=(0.35, 0.6, 1.0), strength=4.0)
     mat("led_strip", (0.02, 0.06, 0.15), rough=0.4, emit=(0.10, 0.42, 1.0), strength=3.0)
     mat("center_mark", (0.05, 0.10, 0.20), rough=0.4, emit=(0.35, 0.65, 1.0), strength=2.5)
     mat("turntable", (0.022, 0.022, 0.025), rough=0.35, metal=0.2)
@@ -138,7 +176,7 @@ def build_materials():
     mat("mic_metal", (0.3, 0.3, 0.32), rough=0.25, metal=1.0)
     mat("monitor", (0.012, 0.012, 0.013), rough=0.7)
     mat("monitor_grille", (0.03, 0.03, 0.032), rough=0.9, metal=0.4)
-    mat("seat", (0.028, 0.028, 0.034), rough=0.95)
+    mat("seat", (0.012, 0.02, 0.09), rough=0.95)          # navy banquet chairs
     mat("audience", (0.006, 0.006, 0.008), rough=0.9)
     mat("house_wall", (0.014, 0.014, 0.017), rough=0.95)
     mat("exit_sign", (0.05, 0.4, 0.12), rough=0.5, emit=(0.15, 1.0, 0.35), strength=2.0)
@@ -307,15 +345,17 @@ def empty(name, pos, size=0.25, kind="PLAIN_AXES"):
 
 
 # ---------------------------------------------------------------- layout
-RISER_X = 5.0          # half width
+RISER_X = 6.0          # half width (12 m riser)
 RISER_Z0, RISER_Z1 = -4.0, 2.6
 RISER_H = 0.6
 FLOOR_Y = -RISER_H
 WALL_Z = -3.6
-WALL_W, WALL_H, WALL_Y0 = 6.4, 3.6, 0.5
+WALL_W, WALL_H, WALL_Y0 = 8.64, 3.6, 0.5   # 2.4 : 1 main screen
+CEIL_Y = 7.4
 TRUSS_X = 5.2
-TRUSS_Z = 1.0          # front truss line
-TRUSS_TOP = 6.4        # top of the span
+TRUSS_Z = 1.3          # front (lower) truss line
+TRUSS_TOP = 6.2        # top of the front span
+BACK_Z, BACK_Y = -1.1, 6.75   # back (upper) truss line, centre height
 TRUSS_W = 0.3
 
 
@@ -341,7 +381,7 @@ def build_riser():
     # stairs at both front corners
     st = Part("stairs")
     for sx in (-1, 1):
-        x0 = sx * 4.25
+        x0 = sx * (RISER_X - 0.75)
         for k in range(2):
             top = -(k + 1) * 0.2
             z0 = RISER_Z1 + k * 0.32
@@ -353,10 +393,10 @@ def build_riser():
     f.box_minmax((-16, FLOOR_Y - 0.05, -9), (16, FLOOR_Y, 18), "floor_house")
     f.finish()
     d = Part("drape")
-    d.quad([(-12, FLOOR_Y, -5.2), (12, FLOOR_Y, -5.2), (12, 10, -5.2), (-12, 10, -5.2)], "drape")
+    d.quad([(-12, FLOOR_Y, -5.2), (12, FLOOR_Y, -5.2), (12, CEIL_Y, -5.2), (-12, CEIL_Y, -5.2)], "drape")
     # side masking legs (facing inward, angled)
-    d.quad([(-8.5, FLOOR_Y, 2.0), (-8.5, FLOOR_Y, -5.2), (-8.5, 10, -5.2), (-8.5, 10, 2.0)], "drape")
-    d.quad([(8.5, FLOOR_Y, -5.2), (8.5, FLOOR_Y, 2.0), (8.5, 10, 2.0), (8.5, 10, -5.2)], "drape")
+    d.quad([(-8.5, FLOOR_Y, 2.0), (-8.5, FLOOR_Y, -5.2), (-8.5, CEIL_Y, -5.2), (-8.5, CEIL_Y, 2.0)], "drape")
+    d.quad([(8.5, FLOOR_Y, -5.2), (8.5, FLOOR_Y, 2.0), (8.5, CEIL_Y, 2.0), (8.5, CEIL_Y, -5.2)], "drape")
     d.finish()
 
 
@@ -388,28 +428,35 @@ def build_led_wall():
     scr.finish()
 
     b = Part("led_wall_frame")
-    t, dep = 0.07, 0.16
+    t, dep = 0.06, 0.16
     zc = z - dep / 2 + 0.03
     b.box((0, y1 + t / 2, zc), (WALL_W + 2 * t, t, dep), "bezel")
     b.box((0, y0 - t / 2, zc), (WALL_W + 2 * t, t, dep), "bezel")
     b.box((x0 - t / 2, (y0 + y1) / 2, zc), (t, WALL_H, dep), "bezel")
     b.box((x1 + t / 2, (y0 + y1) / 2, zc), (t, WALL_H, dep), "bezel")
     b.box((0, (y0 + y1) / 2, z - 0.12), (WALL_W, WALL_H, 0.08), "bezel")
-    # plinth under the wall, from deck to bottom edge
-    b.box_minmax((x0 - 0.2, 0.0, z - 0.35), (x1 + 0.2, y0 - t, z + 0.05), "bezel")
-    # rear support legs
-    for lx in (-2.4, 0, 2.4):
+    b.box_minmax((x0 - 0.1, 0.0, z - 0.35), (x1 + 0.1, y0 - t, z + 0.05), "bezel")   # plinth
+    for lx in (-3.6, -1.2, 1.2, 3.6):
         b.box((lx, (y0 + y1) / 2, z - 0.4), (0.08, WALL_H + 0.4, 0.08), "truss")
     b.finish()
 
-    # flanking vertical light bars
-    lb = Part("led_pillars")
+    # narrower side LED panels, set slightly forward and turned toward the house
+    sp = Part("led_side_panels")
+    pw, ph, py0 = 2.1, 3.0, 0.55
     for sx in (-1, 1):
-        for k, off in enumerate((4.05, 4.45)):
-            h = 3.9 - k * 0.6
-            lb.box((sx * off, h / 2, z + 0.1), (0.06, h, 0.06), "led_strip")
-            lb.box((sx * off, h / 2, z + 0.02), (0.12, h + 0.04, 0.06), "bezel")
-    lb.finish()
+        th = 14.0 * -sx
+        a = math.radians(th)
+        c = Vector((sx * (WALL_W / 2 + 0.35 + pw / 2), py0 + ph / 2, z + 0.25))
+        r = Vector((math.cos(a), 0, -math.sin(a)))
+        n = Vector((math.sin(a), 0, math.cos(a)))
+        up = Vector((0, 1, 0))
+        bl, br = c - r * pw / 2 - up * ph / 2, c + r * pw / 2 - up * ph / 2
+        tr, tl = c + r * pw / 2 + up * ph / 2, c - r * pw / 2 + up * ph / 2
+        sp.quad([tuple(bl), tuple(br), tuple(tr), tuple(tl)], "led_wall_side",
+                uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
+        sp.box(tuple(c - n * 0.07), (pw + 0.1, ph + 0.1, 0.1), "bezel", rot=rot_y_web(th))
+        sp.box((c.x, (py0 - 0.05) / 2, c.z - 0.07), (pw * 0.9, py0 - 0.05, 0.3), "bezel")
+    sp.finish()
 
 
 def build_side_screens():
@@ -462,25 +509,19 @@ def truss_run(p, a, b, w=TRUSS_W, rc=0.024, rb=0.011, pitch=0.5):
 
 def build_truss():
     p = Part("truss")
-    top_c = TRUSS_TOP - TRUSS_W / 2
-    for sx in (-1, 1):
-        x = sx * TRUSS_X
-        truss_run(p, (x, FLOOR_Y + 0.05, TRUSS_Z), (x, top_c - TRUSS_W / 2, TRUSS_Z))
-        p.box((x, FLOOR_Y + 0.015, TRUSS_Z), (0.9, 0.03, 0.9), "fixture_metal")      # base plate
-        p.box((x, top_c, TRUSS_Z), (TRUSS_W + 0.06, TRUSS_W + 0.06, TRUSS_W + 0.06), "truss")  # corner block
-        p.box((x, FLOOR_Y + 0.12, TRUSS_Z), (TRUSS_W + 0.04, 0.12, TRUSS_W + 0.04), "truss")
-    truss_run(p, (-TRUSS_X + TRUSS_W / 2 + 0.03, top_c, TRUSS_Z), (TRUSS_X - TRUSS_W / 2 - 0.03, top_c, TRUSS_Z))
-    # upstage flown span (hung on chain motors) for back light
-    BZ = -2.6
-    BY = 6.9
-    truss_run(p, (-4.6, BY, BZ), (4.6, BY, BZ))
-    for cx in (-4.0, 0.0, 4.0):
-        p.box((cx, BY + 0.35, BZ), (0.22, 0.3, 0.22), "fixture_metal")   # chain hoist
-        p.cyl((cx, BY + 0.5, BZ), (cx, 12.0, BZ), 0.008, "fixture_metal", segs=4, caps=False)
+    span = 6.6
+    front_c = TRUSS_TOP - TRUSS_W / 2
+    for (zc, yc) in ((TRUSS_Z, front_c), (BACK_Z, BACK_Y)):
+        truss_run(p, (-span, yc, zc), (span, yc, zc))
+        for cx in (-5.0, 0.0, 5.0):
+            p.box((cx, yc + TRUSS_W / 2 + 0.17, zc), (0.22, 0.3, 0.22), "fixture_metal")   # chain hoist
+            p.cyl((cx, yc + TRUSS_W / 2 + 0.32, zc), (cx, CEIL_Y, zc), 0.008, "fixture_metal", segs=4, caps=False)
+        for ex in (-span, span):
+            p.box((ex, yc, zc), (0.12, TRUSS_W + 0.04, TRUSS_W + 0.04), "truss")              # end plates
     p.finish()
 
 
-def moving_head(p, mount, target, cones, cone_len=None, r1=0.75):
+def moving_head(p, mount, target, cones, cone_len=None, r1=0.75, lens="fixture_lens"):
     """Hanging moving-head: clamp, base, yoke, head aimed at target, lens and cone."""
     mx, my, mz = mount
     p.box((mx, my - 0.05, mz), (0.08, 0.1, 0.08), "fixture_metal")               # clamp
@@ -496,29 +537,38 @@ def moving_head(p, mount, target, cones, cone_len=None, r1=0.75):
     p.cyl(tuple(back), tuple(front), 0.13, "fixture_metal", segs=12, smooth=True, r2=0.15)
     lens0 = front
     lens1 = front + d * 0.012
-    p.cyl(tuple(lens0), tuple(lens1), 0.11, "fixture_lens", segs=12)
-    L = cone_len if cone_len else (T - lens1).length
-    cones.open_cone(tuple(lens1), tuple(T), 0.1, r1, "light_cone", length=L)
+    p.cyl(tuple(lens0), tuple(lens1), 0.11, lens, segs=12)
+    if cones is not None:
+        L = cone_len if cone_len else (T - lens1).length
+        cones.open_cone(tuple(lens1), tuple(T), 0.1, r1, "light_cone", length=L)
     return tuple(lens1)
 
 
 def build_fixtures():
     p = Part("fixtures")
     cones = Part("light_cones")
-    hang_y = TRUSS_TOP - TRUSS_W       # bottom of front span
     spots = {}
-    # front truss: three hero spots + four wash heads
-    spot_defs = {"L": (-3.0, (0, 0, 0)), "C": (0.0, (0, 0, 0)), "R": (3.0, (0, 0, 0))}
-    for key, (x, tgt) in spot_defs.items():
-        lens = moving_head(p, (x, hang_y, TRUSS_Z), tgt, cones, r1=0.7)
-        spots[key] = (lens, tgt)
-    for x, tgt in ((-4.4, (-2.6, 0, -1.8)), (-1.5, (-1.2, 0, 1.2)), (1.5, (1.2, 0, 1.2)), (4.4, (2.6, 0, -1.8))):
-        moving_head(p, (x, hang_y, TRUSS_Z), tgt, cones, r1=0.9)
-    # upstage flown span: back light heads raking down onto the deck toward the front edge
-    BZ, BY = -2.6, 6.9 - TRUSS_W / 2
-    for i, x in enumerate((-4.0, -2.0, 0.0, 2.0, 4.0)):
-        tgt = (x * 0.55, 0.0, 1.0 + abs(x) * 0.25)
-        moving_head(p, (x, BY, BZ), tgt, cones, r1=0.8)
+    # front (lower) row: hero spots L / C / R plus washes, warm lenses
+    hang_y = TRUSS_TOP - TRUSS_W
+    spot_x = {"L": -3.0, "C": 0.0, "R": 3.0}
+    wash = {-4.5: (-2.8, 0, -1.6), -1.5: (-1.2, 0, 1.2), 1.5: (1.2, 0, 1.2), 4.5: (2.8, 0, -1.6)}
+    for x in (-6.0, -4.5, -3.0, -1.5, 0.0, 1.5, 3.0, 4.5, 6.0):
+        key = next((k for k, v in spot_x.items() if v == x), None)
+        if key:
+            lens = moving_head(p, (x, hang_y, TRUSS_Z), (0, 0, 0), cones, r1=0.7)
+            spots[key] = (lens, (0, 0, 0))
+        elif x in wash:
+            moving_head(p, (x, hang_y, TRUSS_Z), wash[x], cones, r1=0.9)
+        else:
+            moving_head(p, (x, hang_y, TRUSS_Z), (x * 0.6, 0, 1.5), None)
+    # back (upper) row: cool lenses, beams raking onto the deck toward the front edge
+    by = BACK_Y - TRUSS_W / 2
+    for x in (-6.0, -4.5, -3.0, -1.5, 0.0, 1.5, 3.0, 4.5, 6.0):
+        tgt = (x * 0.55, 0.0, 1.0 + abs(x) * 0.2)
+        if x in (-6.0, -3.0, 0.0, 3.0, 6.0):
+            moving_head(p, (x, by, BACK_Z), tgt, cones, r1=0.8, lens="fixture_lens_blue")
+        else:
+            moving_head(p, (x, by, BACK_Z), tgt, None, lens="fixture_lens_blue")
     p.finish()
     cones.finish()
     return spots
@@ -593,7 +643,10 @@ def build_audience():
                     return (x + v.x, floor + ly, z - v.y)
                 seats.box(R(0, 0.20, 0.02), (0.08, 0.40, 0.08), "seat", rot=rot)
                 seats.box(R(0, 0.44, 0.0), (0.50, 0.08, 0.46), "seat", rot=rot)
-                seats.box(R(0, 0.70, 0.24), (0.50, 0.52, 0.07), "seat", rot=rot)
+                seats.box(R(0, 0.76, 0.24), (0.50, 0.64, 0.08), "seat", rot=rot)
+                bl_, br_ = R(0.07, 0.78, 0.285), R(-0.07, 0.78, 0.285)
+                tr_, tl_ = R(-0.07, 0.92, 0.285), R(0.07, 0.92, 0.285)
+                seats.quad([bl_, br_, tr_, tl_], "qr_card", uvs=[(0, 0), (1, 0), (1, 1), (0, 1)])
                 if random.random() < 0.78:
                     s = random.uniform(0.92, 1.08)
                     lean = random.uniform(-0.03, 0.03)
@@ -614,7 +667,7 @@ def build_audience():
 def build_house():
     """Side and back walls of the hall, pilasters, exit signs, aisle and wall lights."""
     h = Part("house_walls")
-    top = 9.0
+    top = CEIL_Y
     # side walls (inner faces) and back wall
     h.quad([(-12, FLOOR_Y, 18), (-12, FLOOR_Y, 2.0), (-12, top, 2.0), (-12, top, 18)], "house_wall")
     h.quad([(12, FLOOR_Y, 2.0), (12, FLOOR_Y, 18), (12, top, 18), (12, top, 2.0)], "house_wall")
@@ -642,6 +695,18 @@ def build_house():
         for sx in (-1, 1):
             l.box((sx * 0.62, FLOOR_Y + 0.12, z), (0.04, 0.05, 0.1), "aisle_light")
     l.finish()
+
+
+def build_ceiling():
+    c = Part("ceiling")
+    x0, x1, z0, z1, y = -12, 12, -5.2, 18, CEIL_Y
+    t = 7.0   # metres per gobo tile
+    c.quad([(x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1)], "ceiling_gobo",
+           uvs=[(x0 / t, z0 / t), (x1 / t, z0 / t), (x1 / t, z1 / t), (x0 / t, z1 / t)])
+    for bz in (-3.0, 1.5, 6.0, 10.5, 15.0):
+        c.box((0, y - 0.18, bz), (24, 0.36, 0.45), "ceiling_beam")
+        c.box((0, y - 0.37, bz), (24, 0.025, 0.06), "cove_light")
+    c.finish()
 
 
 def build_empties(spots):
@@ -689,7 +754,7 @@ def main():
     build_riser()
     build_marks()
     build_led_wall()
-    build_side_screens()
+    build_ceiling()
     build_truss()
     spots = build_fixtures()
     build_podium()

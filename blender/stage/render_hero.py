@@ -224,8 +224,13 @@ def colour_cones():
 def tune_stage_materials():
     for m in bpy.data.materials:
         n = m.name
-        if n.startswith("led_wall"):
-            led_wall_material(m)
+        if n.startswith("led_wall") or n == "ceiling_gobo":
+            # keep the baked texture from stage.glb, just push the glow
+            b = m.node_tree.nodes.get("Principled BSDF") if m.use_nodes else None
+            if b:
+                b.inputs["Emission Strength"].default_value = 1.6 if n.startswith("led_wall") else 1.3
+            else:
+                led_wall_material(m)
         elif n == "light_cone":
             cone_material(m, strength=0.22)
         elif n == "led_strip":
@@ -234,6 +239,10 @@ def tune_stage_materials():
             emission_only(m, (0.45, 0.72, 1.0), 6.0)
         elif n == "fixture_lens":
             emission_only(m, (1.0, 0.95, 0.88), 25.0)
+        elif n == "fixture_lens_blue":
+            emission_only(m, (0.35, 0.6, 1.0), 25.0)
+        elif n == "cove_light":
+            emission_only(m, (0.2, 0.6, 1.0), 6.0)
 
 
 # ---------------------------------------------------------------- avatar + wardrobe
@@ -351,27 +360,32 @@ def area(name, pos, target, color, energy, size):
 
 
 def showtime_lights(has_avatar):
+    # light on the presenter is scaled down so the white tee holds detail and charcoal reads charcoal
+    k = opt("--avlight", 0.22, float) if has_avatar else 1.0
     mark = find("mark_center").matrix_world.translation.copy()
     chest = mark + Vector((0, 0, 1.1))
     for key in ("L", "C", "R"):
         s = find("spot_" + key).matrix_world.translation.copy()
-        energy = (1700 if key == "C" else 1100) if has_avatar else (2600 if key == "C" else 1800)
+        energy = (2600 if key == "C" else 1800) * k
         spot("hero_spot_" + key, s, mark + Vector((0, 0, 0.9 if has_avatar else 0.0)),
              (1.0, 0.94, 0.86), energy, 17 if key == "C" else 15, blend=0.35)
     # colour washes from the upstage flown span (back light) and the side towers
     for x, col in ((-4.0, (0.25, 0.35, 1.0)), (-2.0, (0.75, 0.2, 1.0)), (0.0, (0.2, 0.45, 1.0)),
                    (2.0, (0.75, 0.2, 1.0)), (4.0, (0.25, 0.35, 1.0))):
         spot("hero_back_%d" % x, W(x, 6.6, -2.6), W(x * 0.5, 0.0, 0.8), col, 2200, 30, blend=0.6)
-    spot("hero_side_L", W(-5.2, 3.5, 1.0), W(0, 1.0, 0.0), (0.35, 0.3, 1.0), 900, 25, blend=0.6)
-    spot("hero_side_R", W(5.2, 3.5, 1.0), W(0, 1.0, 0.0), (0.85, 0.25, 0.9), 900, 25, blend=0.6)
+    spot("hero_side_L", W(-5.2, 3.5, 1.0), W(0, 1.0, 0.0), (0.35, 0.3, 1.0), 900 * k, 25, blend=0.6)
+    spot("hero_side_R", W(5.2, 3.5, 1.0), W(0, 1.0, 0.0), (0.85, 0.25, 0.9), 900 * k, 25, blend=0.6)
     # soft front key so the face reads (from the front-of-house position)
-    area("hero_key", W(-2.5, 4.5, 9.0), chest, (1.0, 0.93, 0.85), 900 if has_avatar else 200, 2.5)
+    area("hero_key", W(-2.5, 4.5, 9.0), chest, (1.0, 0.93, 0.85), 2500 * k if has_avatar else 200, 2.5)
     if has_avatar:
         # front-of-house follow spot on the presenter, slightly off axis
         spot("hero_follow", W(1.8, 6.5, 15.0), mark + Vector((0, 0, 1.15)), (1.0, 0.95, 0.88),
-             15000, 6.5, blend=0.6, radius=0.3)
+             40000 * k, 6.5, blend=0.6, radius=0.3)
+        # tight soft face light so the face reads against the bright wall
+        head = mark + Vector((0, 0, 1.62))
+        spot("hero_face", W(0.5, 1.9, 5.5), head, (1.0, 0.9, 0.8), opt("--face", 900, float), 4.0, blend=0.9, radius=0.4)
         # cool rim from upstage high
-        spot("hero_rim", W(0.0, 6.5, -2.6), mark + Vector((0, 0, 1.4)), (0.55, 0.7, 1.0), 2200, 14, blend=0.5)
+        spot("hero_rim", W(0.0, 6.5, -2.6), mark + Vector((0, 0, 1.4)), (0.55, 0.7, 1.0), 5000 * k, 14, blend=0.5)
     # faint house spill on the audience
     area("hero_house", W(0, 7.0, 9.0), W(0, -0.6, 8.0), (0.3, 0.4, 0.9), 120, 10.0)
 
@@ -433,11 +447,12 @@ def render_settings():
         except Exception as e:
             print("HERO: CPU", e)
     try:
-        sc.view_settings.view_transform = "AgX"
-        sc.view_settings.look = "AgX - Punchy"
+        sc.view_settings.view_transform = opt("--view", "AgX")
+        sc.view_settings.look = opt("--look", "AgX - Punchy")
+        print("HERO: look", sc.view_settings.look)
     except Exception:
         pass
-    sc.view_settings.exposure = 0.0
+    sc.view_settings.exposure = opt("--exposure", 0.0, float)
 
 
 def bloom():
@@ -455,7 +470,26 @@ def bloom():
         gl.inputs["Strength"].default_value = 0.55
         gl.inputs["Size"].default_value = 0.6
         ng.links.new(rl.outputs["Image"], gl.inputs["Image"])
-        ng.links.new(gl.outputs["Image"], out.inputs[0])
+        last = gl.outputs["Image"]
+        try:   # soft vignette: ellipse mask (0.55 outside), blurred, multiplied in
+            el = ng.nodes.new("CompositorNodeEllipseMask")
+            el.inputs["Mask"].default_value = 0.55
+            el.inputs["Value"].default_value = 1.0
+            el.inputs["Size"].default_value = (0.95, 0.9)
+            bl = ng.nodes.new("CompositorNodeBlur")
+            px = 320 * RES / 100
+            bl.inputs["Size"].default_value = (px, px)
+            mx = ng.nodes.new("ShaderNodeMix")
+            mx.data_type = "RGBA"
+            mx.blend_type = "MULTIPLY"
+            mx.inputs[0].default_value = 1.0
+            ng.links.new(el.outputs["Mask"], bl.inputs["Image"])
+            ng.links.new(last, mx.inputs[6])
+            ng.links.new(bl.outputs["Image"], mx.inputs[7])
+            last = mx.outputs[2]
+        except Exception as e:
+            print("HERO: vignette skipped", e)
+        ng.links.new(last, out.inputs[0])
         sc.compositing_node_group = ng
         sc.render.use_compositing = True
         print("HERO: bloom on")
