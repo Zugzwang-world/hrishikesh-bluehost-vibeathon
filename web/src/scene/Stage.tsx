@@ -23,7 +23,7 @@ function useFxMaterials(mats: FxMats) {
     for (const m of mats.led) m.emissiveIntensity = lerp(0.2, 1.25, k)
     const pulse = 0.85 + 0.15 * Math.sin(clock.elapsedTime * 2.2)
     for (const m of mats.strip) m.emissiveIntensity = lerp(0.6, 3.2 * pulse, k)
-    for (const m of mats.cone) m.opacity = 0.035 * k
+    for (const m of mats.cone) m.opacity = 0.022 * k
     for (const m of mats.mark) m.emissiveIntensity = lerp(0.4, 2.0, k)
   })
 }
@@ -100,7 +100,8 @@ export function GlbStage() {
     gltf.scene.updateMatrixWorld(true)
     const seen = new Set<Material>()
     gltf.scene.traverse((o: Object3D) => {
-      if (o.name in ANCHORS) o.getWorldPosition(ANCHORS[o.name as AnchorName])
+      // cam_audience in stage.glb is the speaker's POV (behind the avatar); keep our front-of-house shot instead
+      if (o.name in ANCHORS && !o.name.startsWith('cam_audience')) o.getWorldPosition(ANCHORS[o.name as AnchorName])
       const mesh = o as Mesh
       if (!mesh.isMesh) return
       mesh.receiveShadow = true
@@ -214,7 +215,7 @@ export function CameraRig() {
       if (shot === 'cam_close') {
         // keep the whole upper body in frame (judge the outfit, not the nose)
         const d = st.pos.distanceTo(st.aim)
-        if (d < 3) st.pos.sub(st.aim).multiplyScalar(3 / d).add(st.aim)
+        if (d < 3.6) st.pos.sub(st.aim).multiplyScalar(3.6 / d).add(st.aim)
         st.aim.y -= 0.2; st.pos.y -= 0.2
         if (aspect > 1.2) {
           // leave room on the right for the stage check card
