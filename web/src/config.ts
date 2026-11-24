@@ -1,5 +1,5 @@
 // Where "Lock the look" goes when the URL has no host param. Set once the Bluehost app URL exists.
-export const DEFAULT_HOST: string | null = null
+export const DEFAULT_HOST: string | null = 'https://app-b487b.55145.app.bluehost.ai'
 // Cart path on the host (a cartPath URL param overrides it).
 export const CART_PATH = '/cart'
 
