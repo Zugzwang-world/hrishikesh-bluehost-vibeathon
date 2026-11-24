@@ -131,6 +131,9 @@ def garment_objects(meshname):
     return found
 
 
+# original material slot names (the sneaker has a separate sole slot); read before any product overwrites them
+ORIG_SLOTS = {o.name: [sl.material.name if sl.material else "" for sl in o.material_slots] for o in all_objs if o.type == "MESH"}
+
 for o in all_objs:
     if o.type == "MESH":
         o.hide_render = True
@@ -492,9 +495,28 @@ for i, p in enumerate(products):
         o.hide_viewport = False
     bbox = world_bbox(objs)
     mat = make_material(p, objs, bbox)
+    sole_mat = None
+    if p["material"].get("soleColor"):
+        sole_mat = bpy.data.materials.new(p["sku"] + "_sole")
+        sole_mat.use_nodes = True
+        sb = sole_mat.node_tree.nodes.get("Principled BSDF")
+        sb.inputs["Base Color"].default_value = hexlin(p["material"]["soleColor"])
+        sb.inputs["Roughness"].default_value = 0.85
+    default_sole = bpy.data.materials.get("sole_default")
+    if default_sole is None:
+        default_sole = bpy.data.materials.new("sole_default")
+        default_sole.use_nodes = True
+        db = default_sole.node_tree.nodes.get("Principled BSDF")
+        db.inputs["Base Color"].default_value = (0.9, 0.9, 0.88, 1.0)
+        db.inputs["Roughness"].default_value = 0.7
     for o in objs:
+        names = ORIG_SLOTS.get(o.name, [""])
         o.data.materials.clear()
-        o.data.materials.append(mat)
+        for nm in names:
+            if "sole" in nm.lower():
+                o.data.materials.append(sole_mat or default_sole)  # gum sole when the product asks for it (web does the same)
+            else:
+                o.data.materials.append(mat)
         for poly in o.data.polygons:
             poly.use_smooth = True
     frame(objs, p)
