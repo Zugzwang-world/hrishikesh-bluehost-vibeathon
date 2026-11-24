@@ -347,7 +347,7 @@ def text_obj(name, body, width, y, strength, color=(0.94, 0.96, 1.0), spacing=1.
 
 def wall_text():
     """What the web paints on the LED wall at the event (text only, no logos)."""
-    text_obj("hero_wall_name", "HRISHIKESH HUNDEKARI", 6.6, 3.35, 6.0)
+    text_obj("hero_wall_name", "HRISHIKESH HUNDEKARI", 6.2, 3.35, 6.0)
     text_obj("hero_wall_sub", "SHOP-UNI-FY  \u00b7  Small Business AI Builder Tour  \u00b7  Bengaluru",
              5.4, 2.72, 4.0, color=(0.85, 0.9, 1.0), spacing=1.0, bold=0.004)
 

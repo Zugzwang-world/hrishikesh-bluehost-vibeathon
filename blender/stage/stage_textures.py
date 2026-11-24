@@ -68,7 +68,8 @@ def led_wall_tex(w=1536, h=640, seed=11):
         for i in range(6):
             for j in range(5):
                 # dense in the corner, thinning out; keeps the centre band clear for the web's text
-                if i * 1.25 + j * 1.15 > 5.2 or rng.random() < 0.2:
+                lim = 5.2 if corner == "bl" else 3.9    # top-right stays clear of the name band
+                if i * 1.25 + j * 1.15 > lim or rng.random() < 0.2:
                     continue
                 if corner == "bl":
                     cx, cy = cell * (0.9 + i * 1.05), h - cell * (0.9 + j * 1.05)
