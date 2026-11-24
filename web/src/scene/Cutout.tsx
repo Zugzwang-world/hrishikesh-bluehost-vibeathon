@@ -66,9 +66,10 @@ function loadTexture(src: string): Promise<Texture> {
 export function useCutoutMode(): 'pending' | 'cutout' | 'toy' {
   const [mode, setMode] = useState<'pending' | 'cutout' | 'toy'>(PARAMS.avatar === 'toy' ? 'toy' : 'pending')
   useEffect(() => {
-    if (mode !== 'pending') return
+    if (PARAMS.avatar === 'toy') return
     let live = true
-    const timer = window.setTimeout(() => { if (live) setMode('toy') }, 6000)
+    // Slow network: show the toy figure after 6 s, but keep loading and switch to the cutout when it arrives.
+    const timer = window.setTimeout(() => { if (live) setMode(m => (m === 'pending' ? 'toy' : m)) }, 6000)
     loadLooksIndex().then(async idx => {
       if (!idx) { if (live) setMode('toy'); return }
       const st = useStore.getState()
@@ -79,7 +80,7 @@ export function useCutoutMode(): 'pending' | 'cutout' | 'toy' {
       try { await loadTexture(entry.src); if (live) setMode('cutout') } catch { if (live) setMode('toy') }
     })
     return () => { live = false; clearTimeout(timer) }
-  }, [mode])
+  }, [])
   return mode
 }
 
