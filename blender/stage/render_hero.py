@@ -45,7 +45,8 @@ SAMPLES = opt("--samples", 96, int)
 CAM = opt("--cam", None)
 OUT = opt("--out", os.path.join(ROOT, "web", "public", "brand", "hero.jpg"))
 EEVEE = opt("--eevee", cast=bool)
-REHEARSAL = opt("--rehearsal", cast=bool)   # neutral bright preview for checking geometry
+REHEARSAL = opt("--rehearsal", cast=bool)
+PARTIAL = opt("--allow-partial", cast=bool)  # preview: avatar without wardrobe   # neutral bright preview for checking geometry
 
 WORN = {
     "top_tee": (0xF4, 0xF2, 0xEE),
@@ -181,13 +182,52 @@ def cone_material(m, color=(1.0, 0.96, 0.9), strength=0.5):
         pass
 
 
+def colour_cones():
+    """Split the cone mesh into beams and colour them: warm hero spots, blue/violet washes."""
+    ob = bpy.data.objects.get("light_cones")
+    if not ob:
+        return
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    bpy.context.view_layer.objects.active = ob
+    ob.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.separate(type="LOOSE")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    parts = [o for o in bpy.data.objects if o.name.startswith("light_cones")]
+    palette = {
+        "warm": (1.0, 0.93, 0.82),
+        "blue": (0.25, 0.45, 1.0),
+        "violet": (0.62, 0.3, 1.0),
+    }
+    mats = {}
+    for k, col in palette.items():
+        m = bpy.data.materials.new("hero_cone_" + k)
+        cone_material(m, col, 0.22 if k == "warm" else 0.30)
+        mats[k] = m
+    for o in parts:
+        ws = [o.matrix_world @ v.co for v in o.data.vertices]
+        apex = max(ws, key=lambda v: v.z)
+        x, back = apex.x, apex.y > 2.0   # blender y = -web z; upstage span is at web z -2.6
+        if back:
+            key = "violet" if abs(round(x)) in (2,) else "blue"
+        elif abs(x) < 0.3 or abs(abs(x) - 2.92) < 0.3:
+            key = "warm"
+        else:
+            key = "blue"
+        o.data.materials.clear()
+        o.data.materials.append(mats[key])
+    print("HERO: cones", len(parts))
+
+
 def tune_stage_materials():
     for m in bpy.data.materials:
         n = m.name
         if n == "led_wall":
             led_wall_material(m)
         elif n == "light_cone":
-            cone_material(m)
+            cone_material(m, strength=0.22)
         elif n == "led_strip":
             emission_only(m, (0.12, 0.45, 1.0), 9.0)
         elif n == "center_mark":
@@ -200,13 +240,21 @@ def tune_stage_materials():
 def dress_avatar():
     av = os.path.join(MODELS, "avatar.glb")
     wd = os.path.join(MODELS, "wardrobe.glb")
-    if STAGE_ONLY or not (os.path.exists(av) and os.path.exists(wd)):
+    have_wd = os.path.exists(wd)
+    if STAGE_ONLY or not os.path.exists(av) or not (have_wd or PARTIAL):
         print("HERO: stage only")
         return False
     contract = json.load(open(CONTRACT))
     meshes = contract["meshes"]
     import_glb(av)
-    import_glb(wd)
+    if have_wd:
+        import_glb(wd)
+    else:
+        print("HERO: no wardrobe, avatar only (preview)")
+        for ob in bpy.data.objects:
+            if ob.name.split(".")[0] in contract.get("defaultHidden", []):
+                ob.hide_render = True
+        return True
     hide = set(contract.get("defaultHidden", []))
     for g in WORN:
         hide.update(meshes.get(g, {}).get("hides", []))
@@ -327,9 +375,9 @@ def camera():
         tgt = find(CAM + "_target").matrix_world.translation.copy()
         cam_data.lens = 30
     else:
-        pos = W(0.0, 1.05, 7.6)
+        pos = W(0.0, 1.0, 7.0)
         tgt = W(0.0, 1.95, -2.0)
-        cam_data.lens = 31
+        cam_data.lens = 32
     cam.location = pos
     cam.rotation_euler = (tgt - pos).normalized().to_track_quat("-Z", "Y").to_euler()
     cam_data.clip_end = 200
@@ -386,6 +434,10 @@ def main():
     reset()
     import_glb(os.path.join(MODELS, "stage.glb"))
     tune_stage_materials()
+    colour_cones()
+    for name in ("turntable",):
+        if bpy.data.objects.get(name):
+            bpy.data.objects[name].hide_render = True
     has_avatar = dress_avatar()
     wall_text()
     if REHEARSAL:
