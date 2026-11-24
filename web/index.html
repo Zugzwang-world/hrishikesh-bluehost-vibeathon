@@ -20,6 +20,8 @@
       #poster img.in{opacity:1}
       #poster .name{position:absolute;left:0;right:0;top:9%;text-align:center;font-family:Anton,Impact,'Arial Narrow',sans-serif;font-size:min(13vw,17vh);line-height:.9;letter-spacing:.01em;color:rgba(243,238,230,.16);white-space:nowrap}
       #poster .sub{position:absolute;left:0;right:0;top:calc(9% + min(13vw,17vh));text-align:center;font:700 min(1.6vw,12px)/1.4 'Space Mono',ui-monospace,monospace;letter-spacing:.22em;color:rgba(243,238,230,.55)}
+      #poster .vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 85%}
+      #poster.playing .tag,#poster.playing .bar{display:none}
       #poster .tag{position:absolute;left:18px;bottom:16px;font:700 11px/1 'Space Mono',ui-monospace,monospace;letter-spacing:.2em;color:#F3EEE6;opacity:.8;text-shadow:0 1px 8px rgba(0,0,0,.6)}
       #poster .bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:linear-gradient(90deg,#2D4BFF,#7A5CFF);transform-origin:left;transform:scaleX(0);animation:posterbar 9s cubic-bezier(.2,.7,.2,1) forwards}
       @keyframes posterbar{to{transform:scaleX(.94)}}
@@ -33,7 +35,7 @@
       (function () {
         var p = document.getElementById('poster'), q = new URLSearchParams(location.search), path = location.pathname
         if (/^\/(bag|checkout|orders|store)/.test(path)) { p.remove(); return }
-        var h
+        var h, keep = false
         var DEF = 'KK-001,KT-002,KT-006,LL-006,SH-001,SW-001'
         var NAME = '<div class="name">HRISHIKESH HUNDEKARI</div><div class="sub">SHOP-UNI-FY · SMALL BUSINESS AI BUILDER TOUR · BENGALURU</div>'
         function cut(k) { return '<img class="portrait" src="/looks/' + k + '.webp" data-fb="/looks/' + DEF + '.webp" alt="">' }
@@ -43,17 +45,31 @@
         } else if (q.get('mode') === 'locked' && q.get('look')) {
           var k = q.get('look').split(',').map(function (s) { return s.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '') }).filter(Boolean).sort().join(',')
           h = NAME + cut(k)
+        } else if (q.get('mode') === 'persona' && q.get('video') !== '0') {
+          // Brief 10: persona mode is the hero video on a loop (first frame as the instant poster); 3D stays the fallback.
+          h = '<video class="vid" src="/brand/hero-walk.mp4" poster="/brand/hero-walk.jpg" autoplay muted loop playsinline preload="auto"></video>'
+          keep = true
         } else {
           h = NAME + cut(DEF)
         }
         p.innerHTML = h + '<div class="tag">SHOP-UNI-FY · SETTING THE STAGE</div><div class="bar"></div>'
         var img = p.querySelector('img')
         if (img) { img.onload = function () { img.classList.add('in') }; img.onerror = function () { var fb = img.getAttribute('data-fb'); if (fb && img.src.indexOf(fb) < 0) { img.src = fb } else { img.remove() } }; if (img.complete && img.naturalWidth) img.classList.add('in') }
-        var done = false
-        function hide() { if (done) return; done = true; p.classList.add('gone'); setTimeout(function () { p.remove() }, 900) }
-        window.addEventListener('stage:ready', function () { requestAnimationFrame(function () { requestAnimationFrame(hide) }) })
+        var done = false, ready = false
+        function hide() { if (done || keep) return; done = true; p.classList.add('gone'); setTimeout(function () { p.remove() }, 900) }
+        var vid = p.querySelector('video')
+        if (vid) {
+          vid.addEventListener('playing', function () { p.classList.add('playing') })
+          vid.addEventListener('error', function () {
+            keep = false; p.classList.remove('playing')
+            p.innerHTML = NAME + cut(DEF) + '<div class="tag">SHOP-UNI-FY · SETTING THE STAGE</div><div class="bar"></div>'
+            var im = p.querySelector('img'); if (im) im.onload = function () { im.classList.add('in') }
+            if (ready) hide()
+          })
+        }
+        window.addEventListener('stage:ready', function () { ready = true; requestAnimationFrame(function () { requestAnimationFrame(hide) }) })
         window.__hidePoster = hide
-        setTimeout(hide, 12000)
+        setTimeout(function () { if (!keep) hide() }, 12000)
       })()
     </script>
     <div id="root"></div>
