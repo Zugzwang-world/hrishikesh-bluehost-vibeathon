@@ -67,7 +67,7 @@ export default function Scene() {
         <Avatar />
         <ContactShadows position={[0, 0.003, 0.8]} scale={[6, 5]} resolution={384} blur={2.4} opacity={0.55} far={2.2} frames={Infinity} />
         <EffectComposer multisampling={4}>
-          <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.82} luminanceSmoothing={0.2} />
+          <Bloom mipmapBlur intensity={0.5} luminanceThreshold={0.9} luminanceSmoothing={0.15} />
           <Vignette offset={0.28} darkness={0.62} />
         </EffectComposer>
       </Canvas>

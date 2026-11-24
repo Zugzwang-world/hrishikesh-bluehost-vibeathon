@@ -20,7 +20,7 @@ type FxMats = { led: MeshStandardMaterial[]; strip: MeshStandardMaterial[]; cone
 function useFxMaterials(mats: FxMats) {
   useFrame(({ clock }) => {
     const k = stageFx.mix
-    for (const m of mats.led) m.emissiveIntensity = lerp(0.55, 1.25, k)
+    for (const m of mats.led) m.emissiveIntensity = lerp(0.2, 1.25, k)
     const pulse = 0.85 + 0.15 * Math.sin(clock.elapsedTime * 2.2)
     for (const m of mats.strip) m.emissiveIntensity = lerp(0.6, 3.2 * pulse, k)
     for (const m of mats.cone) m.opacity = 0.035 * k
@@ -151,9 +151,9 @@ export function Lights() {
     if (fill.current) fill.current.intensity = lerp(1.0, 0, k)
     if (rim.current) rim.current.intensity = lerp(0.9, 2.2, k)
     const pulse = 1 + 0.08 * Math.sin(clock.elapsedTime * 1.7)
-    if (sL.current) { sL.current.position.copy(ANCHORS.spot_L); sL.current.intensity = lerp(0, 38, k) * pulse }
-    if (sR.current) { sR.current.position.copy(ANCHORS.spot_R); sR.current.intensity = lerp(0, 38, k) / pulse }
-    if (sC.current) { sC.current.position.copy(ANCHORS.spot_C); sC.current.intensity = lerp(0, 55, k) }
+    if (sL.current) { sL.current.position.copy(ANCHORS.spot_L); sL.current.intensity = lerp(0, 30, k) * pulse }
+    if (sR.current) { sR.current.position.copy(ANCHORS.spot_R); sR.current.intensity = lerp(0, 30, k) / pulse }
+    if (sC.current) { sC.current.position.copy(ANCHORS.spot_C); sC.current.intensity = lerp(0, 36, k) }
     targets[0].position.copy(ANCHORS.spot_target_L)
     targets[1].position.copy(ANCHORS.spot_target_R)
     targets[2].position.copy(ANCHORS.spot_target_C)
@@ -187,7 +187,7 @@ export const SHOW_DURATION = 7.8
 export function CameraRig() {
   const camera = useThree(s => s.camera)
   const size = useThree(s => s.size)
-  const st = useMemo(() => ({ shot: '' as Shot | '', t0: 0, fromPos: new Vector3(), fromTgt: new Vector3(), tgt: new Vector3().copy(ANCHORS.cam_fit_target), pos: new Vector3(), aim: new Vector3() }), [])
+  const st = useMemo(() => ({ shot: '' as Shot | '', t0: 0, fromPos: new Vector3(), fromTgt: new Vector3(), tgt: new Vector3().copy(ANCHORS.cam_fit_target), pos: new Vector3(), aim: new Vector3(), right: new Vector3() }), [])
   useFrame(({ clock }) => {
     const { mode, showStart } = useStore.getState()
     let shot: Shot = 'cam_fit'
@@ -205,14 +205,27 @@ export function CameraRig() {
     st.aim.copy(ANCHORS[(shot + '_target') as AnchorName])
     const aspect = size.width / Math.max(1, size.height)
     if (shot === 'cam_fit') {
-      // frame the whole avatar above the product rail: 3 m tall, 1.7 m wide window, centre at 0.55 m
+      // frame the whole avatar above the product rail: 3.5 m tall, 1.7 m wide window, centre at 0.42 m
       const tan = Math.tan(((camera as PerspectiveCamera).fov * Math.PI) / 360)
-      const dist = Math.max(1.5 / tan, 0.85 / (tan * aspect))
-      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + 0.55, ANCHORS.avatar_fit.z)
+      const dist = Math.max(1.75 / tan, 0.85 / (tan * aspect))
+      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + 0.42, ANCHORS.avatar_fit.z)
       st.pos.sub(ANCHORS.cam_fit_target).normalize().multiplyScalar(dist).add(st.aim)
-    } else if (aspect < 1.1) {
-      // portrait screens: back the camera off so the whole avatar fits
-      const f = Math.min(2.1, 1.1 / aspect); st.pos.sub(st.aim).multiplyScalar(f).add(st.aim)
+    } else {
+      if (shot === 'cam_close') {
+        // keep the whole upper body in frame (judge the outfit, not the nose)
+        const d = st.pos.distanceTo(st.aim)
+        if (d < 3) st.pos.sub(st.aim).multiplyScalar(3 / d).add(st.aim)
+        st.aim.y -= 0.2; st.pos.y -= 0.2
+        if (aspect > 1.2) {
+          // leave room on the right for the stage check card
+          st.right.subVectors(st.aim, st.pos).normalize().cross(camera.up).multiplyScalar(0.45)
+          st.aim.add(st.right); st.pos.add(st.right)
+        }
+      }
+      if (aspect < 1.1) {
+        // portrait screens: back the camera off so the whole avatar fits
+        const f = Math.min(2.1, 1.1 / aspect); st.pos.sub(st.aim).multiplyScalar(f).add(st.aim)
+      }
     }
     camera.position.lerpVectors(st.fromPos, st.pos, k)
     st.tgt.lerpVectors(st.fromTgt, st.aim, k)

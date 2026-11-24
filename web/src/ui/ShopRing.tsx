@@ -19,8 +19,8 @@ export function ShopRing() {
         const row = Math.floor(i / 2)
         const rowsOnSide = side < 0 ? rows : Math.floor(ms.length / 2)
         const fy = rowsOnSide > 1 ? row / (rowsOnSide - 1) : 0.5
-        const y = 16 + fy * 58
-        const dy = (y - 47) / 52
+        const y = 14 + fy * 46
+        const dy = (y - 40) / 46
         const x = 50 + side * 38 * Math.sqrt(Math.max(0, 1 - dy * dy))
         return <Badge key={m.slug} m={m} active={shop === m.slug} worn={worn.has(m.slug)} x={x} y={y} i={i} onPick={() => setShop(shop === m.slug ? null : m.slug)} />
       })}
