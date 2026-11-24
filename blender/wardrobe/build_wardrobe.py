@@ -205,7 +205,8 @@ def real_body():
         print("WARDROBE: avatar import failed", e)
         return None
     new = [o for o in bpy.data.objects if o not in before]
-    bodies = [o for o in new if o.type == "MESH" and o.name.startswith("body_") and not o.name.startswith("body_foot")]
+    bodies = [o for o in new if o.type == "MESH" and ((o.name.startswith("body_") and not o.name.startswith("body_foot"))
+                                                     or o.name.startswith("hair_capped"))]
     if not bodies:
         for o in new:
             bpy.data.objects.remove(o, do_unlink=True)
@@ -220,11 +221,6 @@ def real_body():
         if o.name in bpy.data.objects:
             bpy.data.objects.remove(o, do_unlink=True)
     ob = join("fit_body", copies)
-    # watertight version so OUTSIDE_SURFACE knows inside from outside
-    m = ob.modifiers.new("r", "REMESH")
-    m.mode = "VOXEL"
-    m.voxel_size = 0.008
-    apply_mods(ob)
     print("WARDROBE: using real avatar body,", len(ob.data.vertices), "verts")
     return ob
 
@@ -312,20 +308,55 @@ def volume_to_shell(name, build, voxel, smooth_iter, cuts, keep_islands_frac=0.0
     return ob
 
 
-def fit_outside(ob, targets, offset):
+def fit_outside(ob, targets, offset=None, maxdist=0.06, ymin=None, passes=2):
+    """Push garment verts outside each target by its offset. Only targets within maxdist count,
+    so far-away rims/edges never drag geometry (no fins)."""
+    from mathutils.bvhtree import BVHTree
+    dg = bpy.context.evaluated_depsgraph_get()
+    trees = []
     for t, off in targets:
         if t is None:
             continue
-        m = ob.modifiers.new("fit", "SHRINKWRAP")
-        m.target = t
-        m.wrap_method = "NEAREST_SURFACEPOINT"
-        m.wrap_mode = "OUTSIDE"
-        m.offset = off
-    if ob.modifiers:
-        sm = ob.modifiers.new("relax", "SMOOTH")  # soften the push-out creases a touch
-        sm.factor = 0.3
-        sm.iterations = 1
-        apply_mods(ob)
+        me_t = t.data
+        bfaces = set()
+        if len(me_t.polygons) < 200000:
+            import bmesh as _bm
+            tb = _bm.new()
+            tb.from_mesh(me_t)
+            for e in tb.edges:
+                if e.is_boundary:
+                    for f in e.link_faces:
+                        bfaces.add(f.index)
+            tb.free()
+        trees.append((BVHTree.FromObject(t, dg), off, bfaces))
+    if not trees:
+        return
+    me = ob.data
+    mw = ob.matrix_world
+    moved = 0
+    for _ in range(passes):
+        for v in me.vertices:
+            co = v.co.copy()
+            if ymin is not None and co.z < ymin:
+                continue
+            for tree, off, bfaces in trees:
+                loc, nrm, idx, dist = tree.find_nearest(co, maxdist)
+                if loc is None or idx in bfaces:
+                    continue
+                d = (co - loc).dot(nrm)
+                if d < off:
+                    co = loc + nrm * off if d < 0 or (co - loc).length < 1e-6 else co + nrm * (off - d)
+                    moved += 1
+            v.co = co
+    me.update()
+    sm = ob.modifiers.new("relax", "SMOOTH")  # soften the push-out creases a touch
+    sm.factor = 0.25
+    sm.iterations = 1
+    apply_mods(ob)
+    print(f"WARDROBE:   fit {ob.name}: moved {moved}")
+
+
+SHELLS = {}
 
 
 def finish(ob, target_tris, thickness, solid_offset=1.0, sharp_deg=None):
@@ -335,6 +366,9 @@ def finish(ob, target_tris, thickness, solid_offset=1.0, sharp_deg=None):
         d.decimate_type = "COLLAPSE"
         d.ratio = target_tris / tris
         apply_mods(ob)
+    shell = new_obj(ob.name + "__shell", ob.data.copy())
+    shell.hide_render = True
+    SHELLS[ob.name] = shell
     if thickness:
         so = ob.modifiers.new("t", "SOLIDIFY")
         so.thickness = thickness
@@ -458,19 +492,19 @@ def build_top_tee(body, under):
             sleeve_cut(bm, side, 0.20, 0.085)
 
     ob = volume_to_shell("top_tee", build, 0.008, 6, cuts)
-    fit_outside(ob, [(body, 0.012)] + [(u, 0.006) for u in under], 0.012)
-    return finish(ob, 3800, 0.004)
+    fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
+    return finish(ob, 3600, 0.004)
 
 
 def build_top_oversized(body, under):
-    extra = 0.045
+    extra = 0.035
 
     def build(bm):
-        loft(bm, torso_rings(extra, hem=0.84, shoulder=0.03), 44)
+        loft(bm, torso_rings(extra, hem=0.84, shoulder=0.025), 44)
         for side in (1, -1):
             s, d, w, v = arm_frame(side)
             tube_along(bm, s + G(0.03 * side, -0.02, 0) - G(0, 0, 0), d, w, v,
-                       [(-0.02, 0.085, 0.085), (0.0, 0.09, 0.09), (0.15, 0.085, 0.085), (0.32, 0.08, 0.08)], seg=28)
+                       [(-0.02, 0.082, 0.082), (0.0, 0.085, 0.085), (0.15, 0.08, 0.08), (0.32, 0.074, 0.074)], seg=28)
 
     def cuts(bm):
         hem_cut(bm, 0.90)
@@ -479,8 +513,8 @@ def build_top_oversized(body, under):
             sleeve_cut(bm, side, 0.26, 0.10)
 
     ob = volume_to_shell("top_oversized", build, 0.008, 6, cuts)
-    fit_outside(ob, [(body, 0.014)] + [(u, 0.006) for u in under], 0.014)
-    return finish(ob, 3800, 0.004)
+    fit_outside(ob, [(body, 0.014)] + [(u, 0.009) for u in under])
+    return finish(ob, 3600, 0.004)
 
 
 def build_top_shirt(body, under):
@@ -502,8 +536,8 @@ def build_top_shirt(body, under):
             sleeve_cut(bm, side, 0.56, 0.08)
 
     ob = volume_to_shell("top_shirt", build, 0.007, 5, cuts)
-    fit_outside(ob, [(body, 0.012)] + [(u, 0.006) for u in under], 0.012)
-    return finish(ob, 4200, 0.004)
+    fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
+    return finish(ob, 4000, 0.004)
 
 
 def front_open_cut(bm, button_y, top_y, top_half, hem_y, hem_half):
@@ -521,7 +555,7 @@ def front_open_cut(bm, button_y, top_y, top_half, hem_y, hem_half):
     remove_faces(bm, pred)
     clean_loose(bm)
     for v in bm.verts:
-        if v.is_boundary and -v.co.y > 0.015 and hem_y + 0.006 < gy(v.co) < 1.53:
+        if v.is_boundary and -v.co.y > 0.015 and hem_y + 0.006 < gy(v.co) < 1.53 and abs(v.co.x) < f(gy(v.co)) + 0.04:
             v.co.x = math.copysign(f(gy(v.co)), v.co.x if abs(v.co.x) > 1e-6 else 1.0)
 
 
@@ -529,8 +563,8 @@ def build_outer(name, body, under, length_y, extra, lapel):
     def build(bm):
         loft(bm, torso_rings(extra, hem=length_y - 0.04, top_neck=1.58, neck_r=(0.095, 0.092), shoulder=0.012), 44)
         for side in (1, -1):
-            sleeve(bm, side, [(-0.02, 0.085, 0.085), (0.0, 0.088, 0.088), (0.15, 0.078, 0.078), (0.29, 0.068, 0.068),
-                              (0.50, 0.058, 0.06), (0.60, 0.058, 0.06)])
+            sleeve(bm, side, [(-0.02, 0.095, 0.095), (0.0, 0.098, 0.098), (0.15, 0.092, 0.092), (0.29, 0.076, 0.076),
+                              (0.50, 0.06, 0.062), (0.60, 0.06, 0.062)])
 
     def cuts(bm):
         hem_cut(bm, length_y)
@@ -540,7 +574,7 @@ def build_outer(name, body, under, length_y, extra, lapel):
         front_open_cut(bm, 1.05 if lapel else 0.90, 1.50, 0.105 if lapel else 0.075, length_y, 0.07 if lapel else 0.01)
 
     ob = volume_to_shell(name, build, 0.008, 6, cuts)
-    fit_outside(ob, [(body, 0.025)] + [(u, 0.008) for u in under], 0.025)
+    fit_outside(ob, [(body, 0.025)] + [(u, 0.011) for u in under])
     if lapel:
         add_lapels(ob)
     return finish(ob, 5000, 0.006)
@@ -572,11 +606,11 @@ def add_lapels(ob):
 
 
 def build_outer_blazer(body, under):
-    return build_outer("outer_blazer", body, under, 0.78, 0.04, lapel=True)
+    return build_outer("outer_blazer", body, under, 0.78, 0.047, lapel=True)
 
 
 def build_outer_overshirt(body, under):
-    return build_outer("outer_overshirt", body, under, 0.86, 0.045, lapel=False)
+    return build_outer("outer_overshirt", body, under, 0.86, 0.05, lapel=False)
 
 
 def build_bottom(name, body, wide):
@@ -601,8 +635,8 @@ def build_bottom(name, body, wide):
             bisect(bm, G(0, hem, 0), Vector((0, 0, -1)), lambda c, side=side: gy(c) < 0.2 and c.x * side > 0)
 
     ob = volume_to_shell(name, build, 0.006, 6, cuts)
-    fit_outside(ob, [(body, 0.008)], 0.008)
-    return finish(ob, 4200, 0.004)
+    fit_outside(ob, [(body, 0.008)], ymin=0.16)
+    return finish(ob, 3200, 0.004)
 
 
 def build_bottom_wide(body, under):
@@ -674,6 +708,7 @@ def build_shoe_loafer(body, under):
 
 # ---------------------------------------------------------------- headwear
 HEAD_C = (0.0, 1.625, 0.01)
+HAT_TILT = {"head_cap": 13.0, "head_beanie": 9.0, "head_bucket": 7.0}
 
 
 def dome(bm, c, rx, ry, rz, y_cut_frac=0.0, seg=40, rings=14):
@@ -689,9 +724,22 @@ def dome(bm, c, rx, ry, rz, y_cut_frac=0.0, seg=40, rings=14):
     return loft(bm, rings_l, seg, cap0=False, cap1=True)
 
 
+def tilt(ob, deg, pivot_y=1.70):
+    """Rotate about the glTF X axis so the front rises and the back drops (hats sit back on the head)."""
+    th = math.radians(deg)
+    c, s_ = math.cos(th), math.sin(th)
+    for v in ob.data.vertices:
+        y, z = v.co.z - pivot_y, -v.co.y  # glTF y (rel), z
+        y2 = y * c + z * s_
+        z2 = -y * s_ + z * c
+        v.co.z = y2 + pivot_y
+        v.co.y = -z2
+    ob.data.update()
+
+
 def build_head_cap(body, under):
     bm = bmesh.new()
-    dome(bm, (0.0, 1.655, 0.005), 0.098, 0.115, 0.112)
+    dome(bm, (0.0, 1.615, 0.003), 0.099, 0.155, 0.114)
     # brim: flat-ish curved visor at the front
     seg = 24
     rows = []
@@ -700,10 +748,10 @@ def build_head_cap(body, under):
         row = []
         for i in range(seg + 1):
             a = math.radians(-70 + 140 * i / seg)
-            rr = 0.098 + r * 0.075 * math.cos(a * 0.9) ** 0.6
-            x = math.sin(a) * (rr if r > 0 else 0.098)
-            z = 0.005 + math.cos(a) * (0.112 / 0.098) * (rr if r > 0 else 0.098)
-            y = 1.660 - 0.012 * r - 0.004 * r * r
+            rr = 0.097 + r * 0.075 * math.cos(a * 0.9) ** 0.6
+            x = math.sin(a) * rr
+            z = 0.003 + math.cos(a) * (0.114 / 0.099) * rr
+            y = 1.628 - 0.012 * r - 0.004 * r * r
             row.append(bm.verts.new(G(x, y, z)))
         rows.append(row)
     for r0, r1 in zip(rows[:-1], rows[1:]):
@@ -720,17 +768,19 @@ def build_head_cap(body, under):
     # button on top
     bm = bmesh.new()
     bm.from_mesh(ob.data)
-    sphere(bm, G(0, 1.775, 0.005), 0.012, 0.007, 0.012, 12, 6)
+    sphere(bm, G(0, 1.770, 0.003), 0.012, 0.007, 0.012, 12, 6)
     bm.to_mesh(ob.data)
     bm.free()
+    tilt(ob, HAT_TILT[ob.name])
+    fit_outside(ob, [(body, 0.006)], maxdist=0.04)
     return finish(ob, 6000, 0.0)
 
 
 def build_head_beanie(body, under):
     bm = bmesh.new()
-    dome(bm, (0.0, 1.645, 0.005), 0.1, 0.15, 0.113)
+    dome(bm, (0.0, 1.605, 0.003), 0.1, 0.19, 0.115)
     # folded cuff
-    loft(bm, [hring(0, 1.635, 0.005, 0.104, 0.117), hring(0, 1.70, 0.005, 0.104, 0.116)], 40, False, False)
+    loft(bm, [hring(0, 1.598, 0.003, 0.105, 0.119), hring(0, 1.665, 0.003, 0.105, 0.118)], 40, False, False)
     ob = bm_to_obj("head_beanie", bm)
     so = ob.modifiers.new("t", "SOLIDIFY")
     so.thickness = 0.008
@@ -738,13 +788,15 @@ def build_head_beanie(body, under):
     ss = ob.modifiers.new("s", "SUBSURF")
     ss.levels = 1
     apply_mods(ob)
+    tilt(ob, HAT_TILT[ob.name])
+    fit_outside(ob, [(body, 0.006)], maxdist=0.04)
     return finish(ob, 6000, 0.0)
 
 
 def build_head_bucket(body, under):
     bm = bmesh.new()
-    dome(bm, (0.0, 1.66, 0.005), 0.1, 0.105, 0.114, y_cut_frac=0.0)
-    loft(bm, [hring(0, 1.66, 0.005, 0.1, 0.114), hring(0, 1.635, 0.005, 0.15, 0.162), hring(0, 1.615, 0.005, 0.175, 0.185)],
+    dome(bm, (0.0, 1.64, 0.003), 0.101, 0.13, 0.116, y_cut_frac=0.0)
+    loft(bm, [hring(0, 1.64, 0.003, 0.101, 0.116), hring(0, 1.622, 0.003, 0.15, 0.162), hring(0, 1.605, 0.003, 0.172, 0.182)],
          40, False, False)
     ob = bm_to_obj("head_bucket", bm)
     so = ob.modifiers.new("t", "SOLIDIFY")
@@ -753,6 +805,8 @@ def build_head_bucket(body, under):
     ss = ob.modifiers.new("s", "SUBSURF")
     ss.levels = 1
     apply_mods(ob)
+    tilt(ob, HAT_TILT[ob.name])
+    fit_outside(ob, [(body, 0.006)], maxdist=0.04)
     return finish(ob, 6000, 0.0)
 
 
@@ -879,7 +933,7 @@ def build_neck_chain(body, under):
             k = (j + 1) % rseg
             bm.faces.new((r0[j], r1[j], r1[k], r0[k]))
     ob = bm_to_obj("neck_chain", bm)
-    fit_outside(ob, [(body, 0.016)] + [(u, 0.004) for u in under], 0.016)
+    fit_outside(ob, [(body, 0.016)] + [(u, 0.007) for u in under])
     return finish(ob, 3000, 0.0)
 
 
@@ -890,8 +944,8 @@ ORDER = [
     ("top_tee", build_top_tee, ["bottom_wide", "bottom_slim"]),
     ("top_shirt", build_top_shirt, ["bottom_wide", "bottom_slim"]),
     ("top_oversized", build_top_oversized, ["bottom_wide", "bottom_slim"]),
-    ("outer_blazer", build_outer_blazer, ["top_tee", "top_shirt", "bottom_wide", "bottom_slim"]),
-    ("outer_overshirt", build_outer_overshirt, ["top_tee", "top_shirt", "bottom_wide", "bottom_slim"]),
+    ("outer_blazer", build_outer_blazer, ["top_tee", "top_shirt", "top_oversized", "bottom_wide", "bottom_slim"]),
+    ("outer_overshirt", build_outer_overshirt, ["top_tee", "top_shirt", "top_oversized", "bottom_wide", "bottom_slim"]),
     ("shoe_sneaker", build_shoe_sneaker, []),
     ("shoe_loafer", build_shoe_loafer, []),
     ("head_cap", build_head_cap, []),
@@ -901,7 +955,7 @@ ORDER = [
     ("eye_shades", build_eye_shades, []),
     ("watch_analog", build_watch_analog, []),
     ("watch_digital", build_watch_digital, []),
-    ("neck_chain", build_neck_chain, ["top_tee", "top_shirt"]),
+    ("neck_chain", build_neck_chain, ["top_tee", "top_shirt", "top_oversized"]),
 ]
 
 
@@ -912,7 +966,7 @@ def main():
     for name, fn, under_names in ORDER:
         if ONLY and name not in ONLY:
             continue
-        under = [built[u] for u in under_names if u in built]
+        under = [SHELLS[u] for u in under_names if u in SHELLS]
         try:
             built[name] = fn(body, under)
         except Exception as e:
