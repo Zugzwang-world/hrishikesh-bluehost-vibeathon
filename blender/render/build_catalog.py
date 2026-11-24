@@ -162,8 +162,8 @@ MANIFEST = ROOT / "blender" / "render" / "rendered.json"
 
 # merchant wordmark fonts (Google Fonts, stored in blender/render/fonts) + case/tracking
 MFONT = {
-    "kaapi-thrift": dict(file="BowlbyOne.ttf", case="title", track=0.0),
-    "stonewash-society": dict(file="TenorSans.ttf", case="upper", track=0.12),
+    "kaapi-thrift": dict(file="InstrumentSerif-Italic.ttf", case="title", track=0.0),
+    "stonewash-society": dict(file="TenorSans.ttf", case="upper", track=0.10, stack=True),
     "kerbside-kicks": dict(file="Anton.ttf", case="upper", track=0.08),
     "lids-and-lenses": dict(file="ArchivoBlack.ttf", case="upper", track=0.03),
     "second-hand": dict(file="SpaceMono-Bold.ttf", case="lower", track=0.0),
@@ -396,74 +396,212 @@ def mark_color(m):
     return lift(base)
 
 
+INK, BONE, RED = (11, 11, 18), (243, 238, 230), (255, 61, 46)
+
+
+def text_bbox(f, s, track_px):
+    """Pixel bbox of tracked text drawn at (0, 0)."""
+    w = int(tracked_width(f, s, track_px)) + 8
+    asc, desc = f.getmetrics()
+    tmp = Image.new("L", (w + 40, asc + desc + 40), 0)
+    draw_tracked(ImageDraw.Draw(tmp), 20, 20, s, f, 255, track_px)
+    bb = tmp.getbbox()
+    return (bb[0] - 20, bb[1] - 20, bb[2] - 20, bb[3] - 20)
+
+
 def merchant_wordmark(m, path):
+    """A bone woven-label wordmark: reads on white, on ink and on the merchant's own brand colour."""
+    S = 2  # supersample
     cfg = MFONT[m["slug"]]
     s = merchant_name_text(m)
-    size = 150
+    size = 150 * S
     f = gfont(cfg["file"], size)
     track = cfg["track"] * size
-    w = int(tracked_width(f, s, track)) + 60
-    asc, desc = f.getmetrics()
-    h = asc + desc + 50
-    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    draw_tracked(d, 30, 25, s, f, mark_color(m) + (255,), track)
-    bb = img.getbbox()
-    img = img.crop((max(0, bb[0] - 20), max(0, bb[1] - 20), min(w, bb[2] + 20), min(h, bb[3] + 20)))
-    img.save(path)
+    lines = s.split(" ", 1) if (cfg.get("stack") and " " in s) else [s]
+    bbs = [text_bbox(f, ln, track) for ln in lines]
+    lh = max(b[3] - b[1] for b in bbs)
+    gap_l = int(lh * 0.42)
+    tw = max(b[2] - b[0] for b in bbs)
+    th = lh * len(lines) + gap_l * (len(lines) - 1)
+    padx, pady = 78 * S, 52 * S
+    w, h = tw + 2 * padx, th + 2 * pady
+    brand = hex2rgb(m["brandColor"])
+    lab = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lab)
+    rad = 30 * S
+    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=rad, fill=BONE + (255,))
+    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=rad, outline=brand + (110,), width=3 * S)
+    # stitched border
+    inset = 15 * S
+    sd = ImageDraw.Draw(lab, "RGBA")
+    dash, gap = 12 * S, 9 * S
+    x = inset + rad
+    while x < w - inset - rad:
+        sd.line([(x, inset), (min(x + dash, w - inset - rad), inset)], fill=brand + (95,), width=2 * S)
+        sd.line([(x, h - inset), (min(x + dash, w - inset - rad), h - inset)], fill=brand + (95,), width=2 * S)
+        x += dash + gap
+    y = inset + rad
+    while y < h - inset - rad:
+        sd.line([(inset, y), (inset, min(y + dash, h - inset - rad))], fill=brand + (95,), width=2 * S)
+        sd.line([(w - inset, y), (w - inset, min(y + dash, h - inset - rad))], fill=brand + (95,), width=2 * S)
+        y += dash + gap
+    ty = pady
+    for ln, bb in zip(lines, bbs):
+        lw = bb[2] - bb[0]
+        draw_tracked(ImageDraw.Draw(lab), (w - lw) // 2 - bb[0], ty - bb[1] + (lh - (bb[3] - bb[1])) // 2, ln, f, brand + (255,), track)
+        ty += lh + gap_l
+    lab = lab.resize((w // S, h // S), Image.LANCZOS)
+    pad = 6
+    out = Image.new("RGBA", (lab.width + 2 * pad, lab.height + 2 * pad), (0, 0, 0, 0))
+    out.paste(lab, (pad, pad), lab)
+    out.save(path)
+
+
+def wrap_text(d, s, f, max_w, max_lines=2):
+    words, lines, cur = s.split(), [], ""
+    for wd in words:
+        t = (cur + " " + wd).strip()
+        if d.textlength(t, font=f) <= max_w or not cur:
+            cur = t
+        else:
+            lines.append(cur)
+            cur = wd
+    lines.append(cur)
+    return lines[:max_lines]
+
+
+def thrift_tag(p, m, S=2):
+    """A hanging price tag for one piece: swatch, name, size and condition, price, 1 OF 1 stamp.
+    Returns (RGBA image at 1x, hole centre in image coords)."""
+    W, H = 250, 372
+    t = Image.new("RGBA", (W * S, H * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(t)
+    brand = hex2rgb(m["brandColor"])
+    ch = 46 * S
+    poly = [(ch, 0), (W * S - ch, 0), (W * S, ch), (W * S, H * S), (0, H * S), (0, ch)]
+    d.polygon(poly, fill=BONE + (255,))
+    # round off by redrawing outline softly
+    d.line(poly + [poly[0]], fill=brand + (70,), width=2 * S, joint="curve")
+    hole = (W // 2 * S, 44 * S)
+    r = 12 * S
+    d.ellipse([hole[0] - r - 5 * S, hole[1] - r - 5 * S, hole[0] + r + 5 * S, hole[1] + r + 5 * S], fill=(222, 214, 200, 255))
+    d.ellipse([hole[0] - r, hole[1] - r, hole[0] + r, hole[1] + r], fill=(0, 0, 0, 0))
+    # swatch
+    sw = fabric_swatch(p["material"], 220 * S, radius=110 * S, stitch=False).resize((112 * S, 112 * S), Image.LANCZOS)
+    ring = Image.new("RGBA", (120 * S, 120 * S), (0, 0, 0, 0))
+    ImageDraw.Draw(ring).ellipse([0, 0, 120 * S - 1, 120 * S - 1], fill=brand + (255,))
+    t.paste(ring, ((W - 120) // 2 * S, 92 * S), ring)
+    t.paste(sw, ((W - 112) // 2 * S, 96 * S), sw)
+    d = ImageDraw.Draw(t)
+    # name (Instrument Serif italic, up to 2 lines, centred)
+    nf = gfont("InstrumentSerif-Italic.ttf", 33 * S)
+    lines = wrap_text(d, p["name"], nf, (W - 40) * S)
+    y = 224 * S
+    for ln in lines:
+        d.text((W * S / 2 - d.textlength(ln, font=nf) / 2, y), ln, font=nf, fill=INK + (255,))
+        y += 34 * S
+    # meta
+    mf = gfont("SpaceMono-Bold.ttf", 16 * S)
+    sz = str(p.get("size", "-")).upper()
+    meta = f"{'SIZE ' + sz if len(sz) <= 4 else sz}  ·  {p.get('condition', '')}"
+    d.text((W * S / 2 - d.textlength(meta, font=mf) / 2, 300 * S), meta, font=mf, fill=brand + (255,))
+    d.line([(24 * S, 330 * S), ((W - 24) * S, 330 * S)], fill=brand + (60,), width=2 * S)
+    # price + stamp
+    pf = font(26 * S)
+    d.text((24 * S, 338 * S), f"₹{p['price']:,}", font=pf, fill=INK + (255,))
+    sf = gfont("SpaceMono-Bold.ttf", 14 * S)
+    stamp = "1 OF 1"
+    sw_, sh_ = d.textlength(stamp, font=sf) + 18 * S, 26 * S
+    sx, sy = (W - 24) * S - sw_, 342 * S
+    d.rounded_rectangle([sx, sy, sx + sw_, sy + sh_], radius=5 * S, outline=RED + (255,), width=2 * S)
+    d.text((sx + 9 * S, sy + 4 * S), stamp, font=sf, fill=RED + (255,))
+    t = t.resize((W, H), Image.LANCZOS)
+    return t, (hole[0] / S, hole[1] / S)
 
 
 def merchant_banner(m, products, path):
     W, H = 1600, 600
     bg = hex2rgb(m["brandColor"])
     acc = hex2rgb(m["accentColor"])
-    fg = (255, 255, 255) if lum(bg) < 0.30 else (20, 20, 20)
-    # base: horizontal gradient from a lighter brand tone (left) to a deep one (right)
-    grad = Image.linear_gradient("L").rotate(90, expand=True).resize((W, H))  # black on the left -> white on the right
-    img = Image.composite(Image.new("RGB", (W, H), mix(bg, (0, 0, 0), 0.55)), Image.new("RGB", (W, H), mix(bg, (255, 255, 255), 0.08)), grad)
+    fg = BONE
+    # base: lighter brand tone on the left, deep on the right
+    grad = Image.linear_gradient("L").rotate(90, expand=True).resize((W, H))
+    img = Image.composite(Image.new("RGB", (W, H), mix(bg, INK, 0.62)), Image.new("RGB", (W, H), mix(bg, (255, 255, 255), 0.06)), grad)
     # fabric texture, very quiet
     t = tiled(BANNER_TEX[m["slug"]], (W, H))
-    img = Image.blend(img, Image.composite(Image.new("RGB", (W, H), mix(bg, (255, 255, 255), 0.28)), img, t), 0.20)
-    # soft spotlight behind the swatches
-    rad = Image.radial_gradient("L").resize((1200, 900), Image.LANCZOS).point(lambda v: max(0, int(255 - v * 1.42))).point(lambda v: int(v * 0.26))
-    img.paste((255, 255, 255), (700, -150), rad)
+    img = Image.blend(img, Image.composite(Image.new("RGB", (W, H), mix(bg, (255, 255, 255), 0.30)), img, t), 0.18)
+    # spotlight on the tag cluster
+    rad = Image.radial_gradient("L").resize((1300, 1000), Image.LANCZOS).point(lambda v: max(0, int(255 - v * 1.42))).point(lambda v: int(v * 0.30))
+    img.paste((255, 255, 255), (650, -250), rad)
+    # left column: handle, name, tagline, count
     d = ImageDraw.Draw(img)
-    # name, shrunk to fit
+    hf = gfont("SpaceMono-Bold.ttf", 26)
+    handle = m.get("instagram", "")
+    hw = d.textlength(handle, font=hf)
+    d.rounded_rectangle([100, 96, 100 + hw + 36, 96 + 46], radius=23, outline=acc, width=2)
+    d.text((118, 105), handle, font=hf, fill=acc)
     cfg = MFONT[m["slug"]]
     name = merchant_name_text(m)
-    size = 150
+    size = 168
     while size > 50:
         f = gfont(cfg["file"], size)
         if tracked_width(f, name, cfg["track"] * size) <= 720:
             break
         size -= 4
-    asc, desc = f.getmetrics()
-    draw_tracked(d, 100, 150, name, f, fg, cfg["track"] * size)
-    d.line([(104, 150 + asc + desc + 34), (184, 150 + asc + desc + 34)], fill=acc, width=5)
-    d.text((100, 150 + asc + desc + 58), m["tagline"], font=font(36, bold=False), fill=mix(fg, bg, 0.12))
+    bb = text_bbox(f, name, cfg["track"] * size)
+    ny = 178
+    draw_tracked(d, 100 - bb[0], ny - bb[1], name, f, fg, cfg["track"] * size)
+    ybar = ny + (bb[3] - bb[1]) + 34
+    d.rounded_rectangle([100, ybar, 100 + 90, ybar + 6], radius=3, fill=acc)
+    tf = font(31, bold=False)
+    ty = ybar + 30
+    for ln in wrap_text(d, m["tagline"], tf, 690, 2):
+        d.text((100, ty), ln, font=tf, fill=mix(fg, bg, 0.1))
+        ty += 44
     n = len(products)
-    d.text((100, 535), f"{n} PIECES  ·  TRY THEM ON THE STAGE", font=font(22), fill=acc)
-    # row of overlapping product swatches (real colours and patterns)
-    dia = 150 if n <= 6 else 130
-    x0, x1 = 880, 1500
-    step = min(dia * 0.78, (x1 - x0 - dia) / max(1, n - 1))
-    cy = 300
-    shadow = Image.new("L", (W, H), 0)
-    sd = ImageDraw.Draw(shadow)
-    items = []
-    for i, p in enumerate(products):
-        cx = x0 + dia / 2 + i * step
-        items.append((cx, p))
-        sd.ellipse([cx - dia / 2 + 4, cy - dia / 2 + 14, cx + dia / 2 - 4, cy + dia / 2 + 14], fill=150)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(14))
-    img.paste((0, 0, 0), (0, 0), shadow)
-    for cx, p in items:
-        sw = fabric_swatch(p["material"], 300, radius=150, stitch=False).resize((dia, dia), Image.LANCZOS)
-        ring = Image.new("RGBA", (dia + 8, dia + 8), (0, 0, 0, 0))
-        ImageDraw.Draw(ring).ellipse([0, 0, dia + 7, dia + 7], fill=(255, 255, 255, 235))
-        img.paste(ring, (int(cx - dia / 2 - 4), int(cy - dia / 2 - 4)), ring)
-        img.paste(sw, (int(cx - dia / 2), int(cy - dia / 2)), sw)
-    img.save(path, "JPEG", quality=88)
+    cf = gfont("SpaceMono-Bold.ttf", 22)
+    d.text((100, 520), f"{n} PIECES  ·  EVERY ONE 1 OF 1", font=cf, fill=acc)
+    # hanging tags: first, middle, last piece
+    picks = [products[0], products[len(products) // 2], products[-1]] if n >= 3 else list(products)
+    seen, uniq = set(), []
+    for p in picks:
+        if p["sku"] not in seen:
+            seen.add(p["sku"])
+            uniq.append(p)
+    cx0, step = (985, 240) if len(uniq) == 3 else (1100, 280)
+    angles = [6, -4, 6]
+    drops = [30, -6, 52]
+    sh_layer = Image.new("L", (W, H), 0)
+    placed = []
+    for i, p in enumerate(uniq):
+        tag, hole = thrift_tag(p, m)
+        TS = 0.82
+        tag = tag.resize((int(tag.width * TS), int(tag.height * TS)), Image.LANCZOS)
+        hole = (hole[0] * TS, hole[1] * TS)
+        ang = angles[i % 3]
+        rt = tag.rotate(ang, resample=Image.BICUBIC, expand=True)
+        # rotate hole point about the tag centre
+        cxm, cym = tag.width / 2, tag.height / 2
+        a = math.radians(-ang)
+        hx, hy = hole[0] - cxm, hole[1] - cym
+        rx = hx * math.cos(a) - hy * math.sin(a) + rt.width / 2
+        ry = hx * math.sin(a) + hy * math.cos(a) + rt.height / 2
+        hole_target = (cx0 + i * step, 120 + drops[i % 3] + 30)
+        pos = (int(hole_target[0] - rx), int(hole_target[1] - ry))
+        placed.append((rt, pos, hole_target))
+        alpha = rt.split()[3]
+        sh_layer.paste(alpha.point(lambda v: int(v * 0.55)), (pos[0] + 10, pos[1] + 18), alpha)
+    sh_layer = sh_layer.filter(ImageFilter.GaussianBlur(14))
+    img.paste((0, 0, 0), (0, 0), sh_layer)
+    d = ImageDraw.Draw(img)
+    for rt, pos, ht in placed:
+        # string from the top edge to the hole, with a slight sag
+        sx = ht[0] + (ht[0] - 1200) * 0.04
+        d.line([(sx, -10), (ht[0], ht[1])], fill=(226, 218, 204), width=3)
+        d.line([(sx + 2, -10), (ht[0] + 2, ht[1])], fill=(150, 142, 128), width=1)
+    for rt, pos, ht in placed:
+        img.paste(rt, pos, rt)
+    img.save(path, "JPEG", quality=90)
 
 
 def merchant_assets(m, products):
