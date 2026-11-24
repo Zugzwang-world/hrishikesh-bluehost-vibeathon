@@ -44,6 +44,12 @@ function Loader({ ready, minimal }: { ready: boolean; minimal?: boolean }) {
   )
 }
 
+function ProductImage() {
+  const catalog = useStore(s => s.catalog)
+  const p = catalog?.products.find(x => x.sku === PARAMS.sku) ?? catalog?.products[0]
+  return p ? <img className="product-fallback" src={p.image} alt={p.name} /> : null
+}
+
 function Hero() {
   return <div className="hero-fallback"><img src="/brand/hero.jpg" alt="" /></div>
 }
@@ -79,7 +85,7 @@ export default function App() {
   if (PARAMS.mode === 'product') {
     return (
       <div className="app app--bare app--product">
-        {three ? <Suspense fallback={null}><SceneBoundary fallback={null} onFail={() => setFailed(true)}><ProductView /></SceneBoundary></Suspense> : null}
+        {three ? <Suspense fallback={null}><SceneBoundary fallback={<ProductImage />} onFail={() => setFailed(true)}><ProductView /></SceneBoundary></Suspense> : <ProductImage />}
       </div>
     )
   }
