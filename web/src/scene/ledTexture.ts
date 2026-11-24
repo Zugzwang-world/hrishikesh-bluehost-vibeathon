@@ -35,16 +35,16 @@ function draw(c: HTMLCanvasElement) {
   g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillStyle = '#ffffff'
   g.shadowColor = 'rgba(200,210,255,0.9)'; g.shadowBlur = 36
-  let size = 230
+  let size = 190
   g.font = `400 ${size}px ${font}`
   while (g.measureText(SPEAKER).width > W * 0.88 && size > 40) { size -= 8; g.font = `400 ${size}px ${font}` }
-  g.fillText(SPEAKER, W / 2, H * 0.22) // high on the wall: clear of his head in every framing
+  g.fillText(SPEAKER, W / 2, H * 0.28) // above his head, inside the short persona frame
   g.shadowBlur = 0
-  let s2 = 58
+  let s2 = 50
   g.font = `600 ${s2}px 'Inter', system-ui, sans-serif`
   while (g.measureText(TALK_TITLE).width > W * 0.86 && s2 > 20) { s2 -= 2; g.font = `600 ${s2}px 'Inter', system-ui, sans-serif` }
   g.fillStyle = 'rgba(243,238,230,0.92)'
-  g.fillText(TALK_TITLE, W / 2, H * 0.39)
+  g.fillText(TALK_TITLE, W / 2, H * 0.415)
 }
 
 /** Wide canvas for the LED wall: cobalt-to-violet wash, outlined squares, speaker name and talk line. Text only. */
