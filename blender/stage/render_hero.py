@@ -440,6 +440,29 @@ def render_settings():
     sc.view_settings.exposure = 0.0
 
 
+def bloom():
+    """Compositor bloom so LED strips, text and lenses glow (Blender 5 node-group compositor)."""
+    try:
+        sc = bpy.context.scene
+        ng = bpy.data.node_groups.new("hero_comp", "CompositorNodeTree")
+        ng.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+        rl = ng.nodes.new("CompositorNodeRLayers")
+        gl = ng.nodes.new("CompositorNodeGlare")
+        out = ng.nodes.new("NodeGroupOutput")
+        gl.inputs["Type"].default_value = "Bloom"
+        gl.inputs["Quality"].default_value = "High"
+        gl.inputs["Threshold"].default_value = 0.9
+        gl.inputs["Strength"].default_value = 0.55
+        gl.inputs["Size"].default_value = 0.6
+        ng.links.new(rl.outputs["Image"], gl.inputs["Image"])
+        ng.links.new(gl.outputs["Image"], out.inputs[0])
+        sc.compositing_node_group = ng
+        sc.render.use_compositing = True
+        print("HERO: bloom on")
+    except Exception as e:
+        print("HERO: bloom skipped", e)
+
+
 def main():
     reset()
     import_glb(os.path.join(MODELS, "stage.glb"))
@@ -462,6 +485,8 @@ def main():
     if REHEARSAL:
         bpy.context.scene.world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.25, 0.25, 0.27, 1)
     render_settings()
+    if not opt("--no-bloom", cast=bool):
+        bloom()
     bpy.context.scene.render.filepath = OUT
     bpy.ops.render.render(write_still=True)
     print("HERO: wrote", OUT)
