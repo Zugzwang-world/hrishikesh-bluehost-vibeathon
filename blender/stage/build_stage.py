@@ -441,6 +441,16 @@ def build_led_wall():
         b.box((lx, (y0 + y1) / 2, z - 0.4), (0.08, WALL_H + 0.4, 0.08), "truss")
     b.finish()
 
+    # row of LED uplighters along the base of the wall: a lit line that reads in wide, short frames
+    u = Part("wall_uplights")
+    n_up = 13
+    for i in range(n_up):
+        ux = -WALL_W / 2 + 0.3 + i * (WALL_W - 0.6) / (n_up - 1)
+        u.box((ux, 0.06, z + 0.55), (0.26, 0.12, 0.18), "fixture_metal")
+        u.box((ux, 0.125, z + 0.55), (0.2, 0.012, 0.12), "led_strip")
+    u.box((0, 0.004, z + 0.75), (WALL_W, 0.008, 0.025), "led_strip")     # thin floor line in front of them
+    u.finish()
+
     # narrower side LED panels, set slightly forward and turned toward the house
     sp = Part("led_side_panels")
     pw, ph, py0 = 2.1, 3.0, 0.55
