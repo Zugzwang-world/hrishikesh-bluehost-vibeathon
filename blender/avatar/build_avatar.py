@@ -23,11 +23,11 @@ OUT_BLEND = os.path.join(HERE, "avatar.blend")
 SKIN_SRGB = (0x8A, 0x5A, 0x3C)
 HAIR_SRGB = (0x17, 0x13, 0x12)
 SKIN_ROUGH = 0.55
-HAIR_ROUGH = 0.62
+HAIR_ROUGH = 0.78
 
 # ---------------------------------------------------------------- budgets
-BODY_TRIS = 24000
-HAIR_TRIS = 4200
+BODY_TRIS = 23000
+HAIR_TRIS = 6500
 CAPPED_TRIS = 1800
 BEARD_TRIS = 2600
 
@@ -213,7 +213,7 @@ def build_body_mb():
         # ears
         mb.ellipsoid((0.080 * s, 1.612, -0.008), (0.013, 0, 0), (0, 0.030, 0), (0, 0, 0.020), nu=20, nv=12)
     # nose bump (subtle)
-    mb.ellipsoid((0, 1.600, 0.099), (0.014, 0, 0), (0, 0.024, 0), (0, 0, 0.016), nu=20, nv=12)
+    mb.ellipsoid((0, 1.597, 0.101), (0.0135, 0, 0), (0, 0.018, 0), (0, 0, 0.015), nu=20, nv=12)
 
     for s in (1, -1):
         J, d, n = arm_frame(s)
@@ -318,20 +318,23 @@ def hair_full_off(u, v, va, vb):
     off = 0.0065 + 0.0045 * smoothstep(-0.02, 0.08, rel.y)
     # volume on top, heavier toward the sweep side (-X) and front
     top = math.exp(-((v - D(15)) / D(40)) ** 2)
-    off += 0.024 * top * (1.0 + 0.35 * max(-1.0, min(1.0, -rel.x / HEAD_R.x)))
+    off += 0.030 * top * (1.0 + 0.40 * max(-1.0, min(1.0, -rel.x / HEAD_R.x)))
     front = math.exp(-((u) / D(45)) ** 2) * math.exp(-((v - D(40)) / D(22)) ** 2)
-    off += 0.016 * front
+    off += 0.024 * front
     # side part groove, front to crown
     if rel.y > 0.06 and rel.z > -0.06:
         g = math.exp(-((rel.x - PART_X) / 0.005) ** 2)
         off -= 0.009 * g * smoothstep(0.06, 0.09, rel.y)
-    # subtle swept strand grooves on the top
-    if rel.y > 0.0:
-        ang = math.atan2(rel.x - PART_X, rel.z + 0.12)
-        off -= 0.0018 * (0.5 + 0.5 * math.cos(ang * 46)) * smoothstep(0.0, 0.07, rel.y)
+    # swept strand clumps: on top they fan back from the front part, on the sides they run back
+    if rel.y > 0.02:
+        ang = math.atan2(rel.x - PART_X, rel.z + 0.14)
+        off -= 0.0032 * (0.5 + 0.5 * math.cos(ang * 30)) ** 2 * smoothstep(0.02, 0.08, rel.y)
+    side = 1.0 - smoothstep(0.02, 0.08, rel.y)
+    if side > 0:
+        off -= 0.0022 * side * (0.5 + 0.5 * math.cos(rel.y * 260 + rel.z * 40)) ** 2
     # taper to the hairline
-    t = smoothstep(0.0, D(14), vb - v)
-    return 0.0025 + (off - 0.0025) * t
+    t = smoothstep(0.0, D(18), vb - v)
+    return 0.0018 + (off - 0.0018) * t
 
 
 def hair_capped_off(u, v, va, vb):
@@ -354,7 +357,10 @@ def beard_off(u, v, va, vb):
     off += 0.0025 * must
     t = smoothstep(0.0, D(8), vb - v) * smoothstep(0.0, D(6), v - va)
     tu = smoothstep(0.0, D(10), D(84) - abs(u))
-    return 0.002 + (off - 0.002) * t * tu
+    off = 0.002 + (off - 0.002) * t * tu
+    # mouth opening: skin shows through, so the shape reads as moustache + beard
+    m = math.exp(-(u / D(17)) ** 4) * math.exp(-((v - D(118.5)) / D(4.2)) ** 4)
+    return off * (1 - m) - 0.0045 * m
 
 
 def build_hair_full():
