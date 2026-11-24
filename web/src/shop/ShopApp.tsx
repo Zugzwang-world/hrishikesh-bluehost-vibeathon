@@ -31,7 +31,8 @@ export default function ShopApp() {
   else if (head === 'orders') page = parts[1] ? <OrderPage number={decodeURIComponent(parts[1])} /> : <OrdersList />
   else if (head === 'store') { merchant = true; page = <MerchantApp slug={parts[1] ?? ''} order={params.get('order')} /> }
   else page = <BagPage add={params.get('add')} look={params.get('look')} />
-  useEffect(() => { document.title = merchant ? 'Store admin · SHOP-UNI-FY' : 'SHOP-UNI-FY · Bag' }, [merchant])
+  const title = merchant ? 'Store admin · SHOP-UNI-FY' : head === 'checkout' ? 'Checkout · SHOP-UNI-FY' : head === 'orders' ? 'My orders · SHOP-UNI-FY' : 'Bag · SHOP-UNI-FY'
+  useEffect(() => { document.title = title }, [title])
   return (
     <div ref={root} className={merchant ? 'shop shop--admin' : 'shop'}>
       {merchant ? null : <TopBar />}

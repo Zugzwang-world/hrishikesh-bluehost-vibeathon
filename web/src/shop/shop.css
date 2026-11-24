@@ -12,7 +12,7 @@
 .s-top__count { font: 700 11px/1 var(--font-mono); background: var(--c-signal); color: #fff; border-radius: 999px; padding: 3px 6px; }
 
 /* page + type */
-.s-page { max-width: 1320px; margin: 0 auto; padding: clamp(20px, 4vw, 44px) clamp(16px, 4vw, 40px) 80px; }
+.s-page { max-width: 1440px; margin: 0 auto; padding: clamp(20px, 4vw, 44px) clamp(16px, 4vw, 40px) 80px; }
 .s-loading { font-family: var(--font-mono); color: var(--ink-dim); letter-spacing: 0.1em; padding: 40px 0; }
 .s-eyebrow { margin: 0 0 6px; font: 700 12px/1.4 var(--font-mono); letter-spacing: 0.2em; color: var(--c-gold); text-transform: uppercase; }
 .s-hero { margin: 0; font-family: var(--font-display); font-weight: 400; text-transform: uppercase; font-size: clamp(56px, 11vw, 168px); line-height: 0.88; letter-spacing: 0.005em; overflow-wrap: anywhere; }
@@ -52,7 +52,7 @@
 .s-chip--sample::before { display: none; }
 
 /* bag layout: stage in the centre, stores around it */
-.s-bag { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 520px) minmax(0, 1fr); grid-template-areas: 'l stage r'; gap: 20px; margin-top: 28px; align-items: start; }
+.s-bag { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 480px) minmax(0, 1fr); grid-template-areas: 'l stage r'; gap: 20px; margin-top: 28px; align-items: start; }
 .s-bag__stage { grid-area: stage; position: sticky; top: 76px; aspect-ratio: 1; border-radius: 20px; overflow: hidden; background: #07070c; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--line); }
 .s-bag__stage iframe { width: 100%; height: 100%; border: 0; display: block; }
 .s-bag__col { display: grid; gap: 16px; min-width: 0; }
@@ -72,7 +72,7 @@
 .s-store::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--brand-accent, var(--c-gold)); opacity: 0.9; }
 .s-store__head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .s-store__id { display: grid; gap: 3px; min-width: 0; }
-.s-store__name { font-family: var(--font-display); font-size: 22px; line-height: 1; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-store__name { font-family: var(--font-display); font-size: 21px; line-height: 1; text-transform: uppercase; letter-spacing: 0.02em; overflow-wrap: anywhere; }
 .s-store__ig { font: 400 12px/1 var(--font-mono); color: var(--ink-dim); text-decoration: none; }
 a.s-store__ig:hover { color: var(--c-bone); }
 .s-store__foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; margin-top: 4px; border-top: 1px dashed var(--line-strong); font: 400 12px/1 var(--font-mono); color: var(--ink-dim); letter-spacing: 0.06em; text-transform: uppercase; }
@@ -152,7 +152,7 @@ a.s-store__ig:hover { color: var(--c-bone); }
 .s-ord__store { display: grid; gap: 16px; }
 .s-ord__head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
 .s-tl { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; position: relative; }
-.s-tl__step { display: grid; gap: 8px; position: relative; }
+.s-tl__step { display: grid; gap: 8px; position: relative; align-content: start; }
 .s-tl__step::after { content: ''; position: absolute; top: 6px; left: 16px; right: -4px; height: 2px; background: var(--line-strong); }
 .s-tl__step:last-child::after { display: none; }
 .s-tl__step.is-done::after { background: var(--c-cobalt); }
@@ -280,3 +280,17 @@ a.s-store__ig:hover { color: var(--c-bone); }
   .a-grid2 { grid-template-columns: 1fr; }
 }
 @media (max-width: 420px) { .a-kpi em { display: none; } .a-seg button { font-size: 12px; } }
+
+.s-top__brand, .s-top__nav a { white-space: nowrap; }
+.a-side__nav b { margin-left: 8px; }
+@media (max-width: 520px) {
+  .s-top { padding: 10px 12px; }
+  .s-top__brand { font-size: 18px; }
+  .s-top__nav { gap: 0; font-size: 13px; }
+  .s-top__nav a { padding: 7px 8px; }
+  .s-store__head { flex-wrap: wrap; }
+  .s-item { grid-template-columns: 48px minmax(0, 1fr) auto; }
+  .s-item__img { width: 48px; height: 60px; grid-row: span 2; }
+  .s-item .s-price { grid-column: 2; grid-row: 2; justify-self: start; }
+  .s-item__x { grid-column: 3; grid-row: 1 / span 2; }
+}

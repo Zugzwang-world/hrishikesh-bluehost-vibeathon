@@ -4,7 +4,7 @@ import { STATUSES, ensureSamples, inr, merchantBy, merchantOrders, setStatus, th
 import { Chip, StoreLogo, nav } from './nav'
 import { Timeline } from './OrdersPage'
 
-function Drawer({ o, slug, onClose }: { o: Order; slug: string; onClose: () => void }) {
+function Drawer({ o, slug, onClose, onSet }: { o: Order; slug: string; onClose: () => void; onSet: (st: Status) => void }) {
   const s = o.subs.find(x => x.merchant === slug)!
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -30,7 +30,7 @@ function Drawer({ o, slug, onClose }: { o: Order; slug: string; onClose: () => v
             <h3>Status</h3>
             <div className="a-seg" role="group" aria-label="Order status">
               {STATUSES.map(st => (
-                <button key={st} className={st === s.status ? 'is-on' : ''} aria-pressed={st === s.status} onClick={() => setStatus(o.number, slug, st as Status)}>{st}</button>
+                <button key={st} className={st === s.status ? 'is-on' : ''} aria-pressed={st === s.status} onClick={() => onSet(st)}>{st}</button>
               ))}
             </div>
             <Timeline sub={s} />
@@ -93,12 +93,14 @@ export default function MerchantApp({ slug, order }: { slug: string; order: stri
   const toFulfil = orders.filter(o => ['New', 'Packed'].includes(mine(o).status)).length
   const open = order ? orders.find(o => o.number.toUpperCase() === order.toUpperCase()) : undefined
   const openOrder = (num: string | null) => nav(num ? `/store/${slug}?order=${num}` : `/store/${slug}`, true)
+  const mark = (o: Order, st: Status) => {
+    if (mine(o).status === st) return
+    setStatus(o.number, slug, st)
+    setToast(`${o.number} marked ${st}. Customer notified.`)
+  }
   const advance = (o: Order) => {
     const cur = STATUSES.indexOf(mine(o).status)
-    if (cur >= 3) return
-    const next = STATUSES[cur + 1]
-    setStatus(o.number, slug, next)
-    setToast(`${o.number} marked ${next}. Customer notified.`)
+    if (cur < 3) mark(o, STATUSES[cur + 1])
   }
 
   return (
@@ -155,7 +157,7 @@ export default function MerchantApp({ slug, order }: { slug: string; order: stri
         </section>
       </main>
 
-      <AnimatePresence>{open ? <Drawer key={open.number} o={open} slug={slug} onClose={() => openOrder(null)} /> : null}</AnimatePresence>
+      <AnimatePresence>{open ? <Drawer key={open.number} o={open} slug={slug} onClose={() => openOrder(null)} onSet={st => mark(open, st)} /> : null}</AnimatePresence>
       <AnimatePresence>{toast ? <motion.div className="a-toast" role="status" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}>{toast}</motion.div> : null}</AnimatePresence>
     </div>
   )

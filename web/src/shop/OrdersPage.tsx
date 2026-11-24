@@ -6,7 +6,7 @@ const STEP_NOTE: Record<string, string> = {
   New: 'Order received by the store',
   Packed: 'Washed, pressed, tagged 1 of 1',
   Shipped: 'On its way to you',
-  Delivered: 'Delivered',
+  Delivered: 'At your door',
 }
 
 export function Timeline({ sub }: { sub: SubOrder }) {
@@ -18,7 +18,7 @@ export function Timeline({ sub }: { sub: SubOrder }) {
         const done = i <= cur
         return (
           <li key={st} className={done ? (i === cur ? 's-tl__step is-cur' : 's-tl__step is-done') : 's-tl__step'}>
-            <motion.span className="s-tl__dot" layout animate={{ scale: i === cur ? [1, 1.35, 1] : 1 }} transition={{ duration: 0.5 }} />
+            <motion.span className="s-tl__dot" animate={{ scale: i === cur ? [1, 1.35, 1] : 1 }} transition={{ duration: 0.5 }} />
             <span className="s-tl__txt">
               <strong>{st}</strong>
               <span>{done && h ? when(h.at) : STEP_NOTE[st]}</span>
