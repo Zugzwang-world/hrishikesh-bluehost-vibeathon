@@ -372,6 +372,15 @@ def cinch(ob, body, pred, offset, falloff=0.045, maxdist=0.25):
     if not B:
         bm.free()
         return
+    Bset = set(B)
+    for _ in range(6):  # relax the stair-stepped voxel edge along the loop first
+        newco = {}
+        for v in B:
+            nb = [e.other_vert(v) for e in v.link_edges if e.is_boundary and e.other_vert(v) in Bset]
+            if len(nb) == 2:
+                newco[v] = (v.co * 2 + nb[0].co + nb[1].co) / 4
+        for v, c in newco.items():
+            v.co = c
     disp = []
     for v in B:
         loc, nrm, idx, dist = tree.find_nearest(v.co, maxdist)
@@ -379,6 +388,13 @@ def cinch(ob, body, pred, offset, falloff=0.045, maxdist=0.25):
             disp.append(Vector())
             continue
         disp.append((loc + nrm * offset) - v.co)
+    idx_of = {v: i for i, v in enumerate(B)}
+    for _ in range(4):  # smooth the pull along the loop so the edge stays even
+        nd = []
+        for i, v in enumerate(B):
+            nb = [idx_of[e.other_vert(v)] for e in v.link_edges if e.is_boundary and e.other_vert(v) in idx_of]
+            nd.append((disp[i] * 2 + sum((disp[j] for j in nb), Vector())) / (2 + len(nb)))
+        disp = nd
     kd = KDTree(len(B))
     for i, v in enumerate(B):
         kd.insert(v.co, i)
@@ -549,9 +565,9 @@ def build_top_tee(body, under):
             sleeve_cut(bm, side, 0.20, 0.085)
 
     ob = volume_to_shell("top_tee", build, 0.008, 6, cuts)
+    fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     cinch(ob, body, is_neck, 0.003)
     cinch(ob, body, is_cuff, 0.01, falloff=0.05)
-    fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     return finish(ob, 3600, 0.004)
 
 
@@ -572,9 +588,9 @@ def build_top_oversized(body, under):
             sleeve_cut(bm, side, 0.26, 0.10)
 
     ob = volume_to_shell("top_oversized", build, 0.008, 6, cuts)
+    fit_outside(ob, [(body, 0.014)] + [(u, 0.009) for u in under])
     cinch(ob, body, is_neck, 0.006)
     cinch(ob, body, is_cuff, 0.02, falloff=0.05)
-    fit_outside(ob, [(body, 0.014)] + [(u, 0.009) for u in under])
     return finish(ob, 3600, 0.004)
 
 
@@ -594,32 +610,33 @@ def build_top_shirt(body, under):
         hem_cut(bm, 0.93)
         neck_cut(bm, 1.52, 1.475)
         for side in (1, -1):
-            sleeve_cut(bm, side, 0.56, 0.08)
+            sleeve_cut(bm, side, 0.567, 0.08)
 
     ob = volume_to_shell("top_shirt", build, 0.007, 5, cuts)
+    fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     cinch(ob, body, is_neck, 0.01, falloff=0.03)
     cinch(ob, body, is_cuff, 0.006, falloff=0.06)
-    fit_outside(ob, [(body, 0.012)] + [(u, 0.009) for u in under])
     return finish(ob, 4000, 0.004)
 
 
 def front_open_cut(bm, button_y, top_y, top_half, hem_y, hem_half):
-    """Open front: V from the collar down to the button, cutaway below. Removes |x| < f(y) on the front."""
-    def f(y):
-        if y >= button_y:
-            return top_half * (y - button_y) / (top_y - button_y)
-        return hem_half * (button_y - y) / (button_y - hem_y)
-
-    def pred(c):
-        y = gy(c)
-        z = -c.y
-        return z > 0.02 and abs(c.x) < f(y) + 0.003
-
-    remove_faces(bm, pred)
+    """Open front with clean straight edges: a V from the collar to the button, a cutaway below it."""
+    k = top_half / (top_y - button_y)
+    k2 = hem_half / max(1e-3, button_y - hem_y)
+    co = G(0, button_y, 0)
+    for side in (1, -1):
+        # above the button: remove side*x < k (y - yb)
+        n_up = G(-side, k, 0) - G(0, 0, 0)
+        bisect(bm, co, n_up, lambda c, side=side: -c.y > 0.02 and c.x * side > -0.012 and gy(c) > button_y - 0.03)
+        n_dn = G(-side, -k2, 0) - G(0, 0, 0)
+        bisect(bm, co, n_dn, lambda c, side=side: -c.y > 0.02 and c.x * side > -0.012 and gy(c) < button_y + 0.03)
     clean_loose(bm)
-    for v in bm.verts:
-        if v.is_boundary and -v.co.y > 0.015 and hem_y + 0.006 < gy(v.co) < 1.53 and abs(v.co.x) < f(gy(v.co)) + 0.04:
-            v.co.x = math.copysign(f(gy(v.co)), v.co.x if abs(v.co.x) > 1e-6 else 1.0)
+
+
+def opening_half(y, button_y, top_y, top_half, hem_y, hem_half):
+    if y >= button_y:
+        return top_half * (y - button_y) / (top_y - button_y)
+    return hem_half * (button_y - y) / max(1e-3, button_y - hem_y)
 
 
 def build_outer(name, body, under, length_y, extra, lapel):
@@ -631,40 +648,50 @@ def build_outer(name, body, under, length_y, extra, lapel):
 
     def cuts(bm):
         hem_cut(bm, length_y)
-        neck_cut(bm, 1.545, 1.50, r_reg=0.12)
+        neck_cut(bm, 1.53, 1.49, r_reg=0.12)
         for side in (1, -1):
-            sleeve_cut(bm, side, 0.555, 0.09)
+            sleeve_cut(bm, side, 0.567, 0.09)
         front_open_cut(bm, 1.05 if lapel else 0.90, 1.50, 0.105 if lapel else 0.075, length_y, 0.07 if lapel else 0.01)
 
     ob = volume_to_shell(name, build, 0.008, 6, cuts)
-    cinch(ob, body, lambda c: is_cuff(c) and gy(c) < 1.05, 0.013, falloff=0.07)
     fit_outside(ob, [(body, 0.025)] + [(u, 0.011) for u in under])
+    cinch(ob, body, lambda c: is_cuff(c) and gy(c) < 1.05, 0.013, falloff=0.07)
     if lapel:
-        add_lapels(ob)
-    return finish(ob, 5000, 0.006)
+        add_lapels(ob, 1.05, 1.50, 0.105, length_y, 0.07)
+    return finish(ob, 3700, 0.006)
 
 
-def add_lapels(ob):
-    """Lapels: the band of faces next to the V opening is extruded outward and folded over."""
+def add_lapels(ob, button_y, top_y, top_half, hem_y, hem_half):
+    """Lapels: a smooth panel lying on the chest along each edge of the V, widening up to a notch."""
+    from mathutils.bvhtree import BVHTree
+    tree = BVHTree.FromObject(ob, bpy.context.evaluated_depsgraph_get())
     bm = bmesh.new()
     bm.from_mesh(ob.data)
-    bm.normal_update()
-    band = []
-    for f in bm.faces:
-        c = f.calc_center_median()
-        y = gy(c)
-        z = -c.y
-        if z > 0.03 and 1.07 < y < 1.47:
-            lim = 0.105 * (y - 1.05) / 0.45
-            if lim < abs(c.x) < lim + 0.055 * min(1.0, (y - 1.05) / 0.2):
-                band.append(f)
-    if band:
-        res = bmesh.ops.extrude_face_region(bm, geom=band)
-        verts = [g for g in res["geom"] if isinstance(g, bmesh.types.BMVert)]
-        for v in verts:
-            r = Vector((v.co.x, v.co.y, 0.0))
-            v.co += r.normalized() * 0.006
-        bmesh.ops.delete(bm, geom=band, context="FACES")
+    rows, cols = 26, 6
+    y0, y1 = button_y + 0.01, 1.47
+    for side in (1, -1):
+        grid = []
+        for i in range(rows + 1):
+            y = y0 + (y1 - y0) * i / rows
+            xin = opening_half(y, button_y, top_y, top_half, hem_y, hem_half) - 0.002
+            if y < 1.40:
+                w = 0.078 * min(1.0, (y - button_y) / 0.28) ** 0.8
+            else:
+                w = 0.078 - 0.04 * (y - 1.40) / (y1 - 1.40)
+            row = []
+            for j in range(cols + 1):
+                x = (xin + w * j / cols) * side
+                org = G(x, y, 0.5)
+                hit, nrm, idx, dist = tree.ray_cast(org, Vector((0, 1, 0)), 1.0)
+                if hit is None:
+                    hit, nrm = G(x, y, 0.16), Vector((0, -1, 0))
+                lift = 0.004 + 0.003 * (j / cols)  # roll: outer edge stands off a touch
+                row.append(bm.verts.new(hit + nrm * lift))
+            grid.append(row)
+        for i in range(rows):
+            for j in range(cols):
+                q = (grid[i][j], grid[i][j + 1], grid[i + 1][j + 1], grid[i + 1][j])
+                bm.faces.new(q if side > 0 else tuple(reversed(q)))
     bm.to_mesh(ob.data)
     bm.free()
 
@@ -1074,7 +1101,9 @@ def main():
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_apply=True,
                               export_yup=True, export_texcoords=True, export_normals=True,
                               export_materials="EXPORT", export_animations=False,
-                              export_draco_mesh_compression_enable=False)
+                              export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=6,
+                              export_draco_position_quantization=14, export_draco_normal_quantization=10,
+                              export_draco_texcoord_quantization=12)
     print("WARDROBE: exported", OUT, os.path.getsize(OUT), "bytes;", ", ".join(built))
     if keep_body:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join("/tmp", "wardrobe_debug.blend"))
