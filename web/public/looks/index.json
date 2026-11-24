@@ -1,0 +1,39 @@
+{
+ "version": 1,
+ "caption": "AI render of Hrishikesh",
+ "canvas": {
+  "w": 800,
+  "h": 1400,
+  "figurePx": 1300,
+  "feetY": 1380
+ },
+ "looks": [
+  {
+   "key": "KK-001,KT-001,KT-006,LL-001,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-001",
+    "KT-006",
+    "LL-001",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": "Stage Ready",
+   "src": "/looks/KK-001,KT-001,KT-006,LL-001,LL-006,SH-001,SW-001.webp"
+  },
+  {
+   "key": "KK-001,KT-002,KT-006,LL-006,SH-001,SW-001",
+   "skus": [
+    "KK-001",
+    "KT-002",
+    "KT-006",
+    "LL-006",
+    "SH-001",
+    "SW-001"
+   ],
+   "title": "Hrishikesh today",
+   "src": "/looks/KK-001,KT-002,KT-006,LL-006,SH-001,SW-001.webp"
+  }
+ ]
+}
