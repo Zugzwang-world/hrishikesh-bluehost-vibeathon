@@ -207,6 +207,7 @@ const SYSTEM = `You are the stage check for Hrishikesh's look: he presents on st
 
 Guide:
 - topContrast is the WCAG contrast of his front garment (outerwear if worn, else top) against the LED wall colour: 4.5 or more pops, 3 to 4.5 is fine, under 3 he melts into the screen.
+- topUnderContrast (only when outerwear is worn) is the top showing in the V of the jacket against the wall; a light top there also separates him from the screen, so weigh it at about a third.
 - brightnessUnderSpots is mean relative luminance of the garments under the spots: 0.1 to 0.6 is balanced, under 0.08 detail disappears on camera, over 0.7 risks glare.
 - printReadability is the contrast of any print against its garment (3 or more reads from the back rows); null means no print.
 - score: 0 to 100 (85+ stage-ready, 60 to 84 good with a tweak, under 60 risky).
@@ -273,6 +274,7 @@ export default async function handler(req: Req, res: ServerResponse) {
     printReadability: num(m.printReadability),
     merchants: num(m.merchants),
     total: num(m.total),
+    topUnderContrast: look.outerwear && look.top ? contrast(bySku.get(look.top)!.color, led) : null,
   }
   const outfit = SLOTS.map((s) => {
     const p = look[s] ? bySku.get(look[s] as string) : undefined

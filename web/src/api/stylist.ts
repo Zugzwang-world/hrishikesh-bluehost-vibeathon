@@ -389,7 +389,11 @@ export function rulesStageCheck(look: Look, metrics: StageMetrics, catalog: Cata
   const frontName = front ? front.name.toLowerCase() : 'top'
   const c = m.topContrast || 1
   const b = m.brightnessUnderSpots || 0
-  const contrastPts = Math.max(0, Math.min(1, (c - 1) / (4.5 - 1))) * 55
+  // A top showing in the V of a jacket still separates you from the wall, so it counts for a share.
+  const under = look?.outerwear && look?.top ? skus.get(look.top) : undefined
+  const cUnder = under && m.ledWallColor ? contrastRatio(apparentColor(under), m.ledWallColor) : null
+  const eff = cUnder != null ? 0.65 * c + 0.35 * Math.min(cUnder, 7) : c
+  const contrastPts = Math.max(0, Math.min(1, (eff - 1) / (4.5 - 1))) * 55
   const brightPts = b < 0.04 ? 10 : b < 0.1 ? 20 : b <= 0.6 ? 30 : b <= 0.75 ? 22 : 14
   const printPts = m.printReadability == null ? 10 : Math.max(0, Math.min(1, (m.printReadability - 1) / (3 - 1))) * 10
   const requiredPts = REQUIRED.every((s) => look?.[s]) ? 5 : 0
@@ -401,7 +405,9 @@ export function rulesStageCheck(look: Look, metrics: StageMetrics, catalog: Cata
       ? `Your ${frontName} reads at ${r2(c)}:1 against the LED wall, strong separation from the screen.`
       : c >= 3
         ? `Your ${frontName} reads at ${r2(c)}:1 against the LED wall; fine, but 4.5:1 would really pop on camera.`
-        : `Your ${frontName} reads at only ${r2(c)}:1 against the LED wall; you risk melting into the screen.`,
+        : cUnder != null && cUnder >= 4.5
+          ? `Your ${frontName} reads at only ${r2(c)}:1 against the LED wall, but the ${under!.colorName.toLowerCase()} top in the V keeps you from melting into the screen.`
+          : `Your ${frontName} reads at only ${r2(c)}:1 against the LED wall; you risk melting into the screen.`,
     b < 0.1
       ? 'The look is very dark under the spots; detail and texture will disappear on the livestream.'
       : b > 0.65
@@ -413,7 +419,7 @@ export function rulesStageCheck(look: Look, metrics: StageMetrics, catalog: Cata
         : `The print only reaches ${r2(m.printReadability)}:1; it will be hard to read past the front row.`
       : `${m.merchants} independent ${m.merchants === 1 ? 'store' : 'stores'}, Rs ${Math.round(m.total).toLocaleString('en-IN')} for the full look.`,
   ]
-  const swap = c < 4.5 ? bestContrastSwap(look, catalog, m.ledWallColor) : null
+  const swap = eff < 4.5 ? bestContrastSwap(look, catalog, m.ledWallColor) : null
   return { score, verdict, notes, swap, source: 'rules' }
 }
 
