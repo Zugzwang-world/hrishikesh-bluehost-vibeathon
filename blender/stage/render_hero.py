@@ -204,7 +204,7 @@ def colour_cones():
     mats = {}
     for k, col in palette.items():
         m = bpy.data.materials.new("hero_cone_" + k)
-        cone_material(m, col, 0.22 if k == "warm" else 0.30)
+        cone_material(m, col, 0.12 if k == "warm" else 0.30)
         mats[k] = m
     for o in parts:
         ws = [o.matrix_world @ v.co for v in o.data.vertices]
@@ -278,7 +278,7 @@ def dress_avatar():
             rough = {"top_tee": 0.85, "outer_blazer": 0.7, "bottom_wide": 0.75, "shoe_sneaker": 0.5}[base]
             b.inputs["Roughness"].default_value = rough
             try:
-                b.inputs["Sheen Weight"].default_value = 0.3 if base != "shoe_sneaker" else 0.0
+                b.inputs["Sheen Weight"].default_value = 0.08 if base != "shoe_sneaker" else 0.0
             except Exception:
                 pass
             ob.data.materials.clear()
@@ -355,7 +355,7 @@ def showtime_lights(has_avatar):
     chest = mark + Vector((0, 0, 1.1))
     for key in ("L", "C", "R"):
         s = find("spot_" + key).matrix_world.translation.copy()
-        energy = 2600 if key == "C" else 1800
+        energy = (1700 if key == "C" else 1100) if has_avatar else (2600 if key == "C" else 1800)
         spot("hero_spot_" + key, s, mark + Vector((0, 0, 0.9 if has_avatar else 0.0)),
              (1.0, 0.94, 0.86), energy, 17 if key == "C" else 15, blend=0.35)
     # colour washes from the upstage flown span (back light) and the side towers
@@ -369,7 +369,7 @@ def showtime_lights(has_avatar):
     if has_avatar:
         # front-of-house follow spot on the presenter, slightly off axis
         spot("hero_follow", W(1.8, 6.5, 15.0), mark + Vector((0, 0, 1.15)), (1.0, 0.95, 0.88),
-             26000, 6.5, blend=0.6, radius=0.3)
+             15000, 6.5, blend=0.6, radius=0.3)
         # cool rim from upstage high
         spot("hero_rim", W(0.0, 6.5, -2.6), mark + Vector((0, 0, 1.4)), (0.55, 0.7, 1.0), 2200, 14, blend=0.5)
     # faint house spill on the audience
