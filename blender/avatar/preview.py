@@ -17,6 +17,19 @@ HIDE = set(args[1].split(",")) if len(args) > 1 else {"hair_capped"}
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=GLB)
+# optional third arg: comma list of wardrobe meshes to dress (contract hides/shows applied)
+WEAR = args[2].split(",") if len(args) > 2 else []
+if WEAR:
+    import json
+    contract = json.load(open(os.path.join(ROOT, "contract", "meshes.json")))
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT, "web", "public", "models", "wardrobe.glb"))
+    for o in set(bpy.data.objects) - before:
+        if o.type == "MESH" and o.name.split(".")[0] not in WEAR:
+            o.hide_render = True
+    for w in WEAR:
+        HIDE |= set(contract["meshes"][w]["hides"])
+        HIDE -= set(contract["meshes"][w]["shows"])
 for o in bpy.context.scene.objects:
     if o.name.split(".")[0] in HIDE:
         o.hide_render = True

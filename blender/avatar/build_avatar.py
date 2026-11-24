@@ -211,7 +211,7 @@ def build_body_mb():
     mb.ellipsoid(HEAD_C, (HEAD_R.x, 0, 0), (0, HEAD_R.y, 0), (0, 0, HEAD_R.z), nu=64, nv=40, fn=head_deform)
     for s in (1, -1):
         # ears
-        mb.ellipsoid((0.080 * s, 1.612, -0.008), (0.013, 0, 0), (0, 0.030, 0), (0, 0, 0.020), nu=20, nv=12)
+        mb.ellipsoid((0.085 * s, 1.612, -0.010), (0.012, 0, 0), (0, 0.031, 0), (0, 0, 0.021), nu=20, nv=12)
     # nose bump (subtle)
     mb.ellipsoid((0, 1.597, 0.101), (0.0135, 0, 0), (0, 0.018, 0), (0, 0, 0.015), nu=20, nv=12)
 
@@ -307,7 +307,7 @@ def shell(mb, u0, u1, nu, vmin_fn, vmax_fn, nv, off_fn, inner=-0.006, closed=Fal
 
 
 D = math.radians
-HAIRLINE = [(0, 70), (25, 70), (45, 75), (60, 84), (68, 100), (80, 100), (86, 80), (110, 78),
+HAIRLINE = [(0, 70), (25, 70), (45, 75), (60, 86), (67, 105), (81, 105), (87, 80), (110, 78),
             (122, 94), (145, 113), (180, 121)]
 PART_X = 0.034  # side part on the figure's left (+X)
 
@@ -348,7 +348,7 @@ def hair_capped_off(u, v, va, vb):
 CAP_V = math.acos((1.62 - HEAD_C.y) / HEAD_R.y)  # polar angle of the cap line
 
 
-BEARD_TOP = [(0, 106), (16, 107), (28, 111), (42, 113), (58, 108), (72, 101), (84, 98)]
+BEARD_TOP = [(0, 106), (16, 107), (28, 111), (42, 113), (56, 107), (66, 100), (84, 97)]
 BEARD_BOT = [(0, 164), (30, 157), (55, 145), (70, 131), (84, 118)]
 
 
