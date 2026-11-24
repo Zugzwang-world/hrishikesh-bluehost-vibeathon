@@ -1,10 +1,11 @@
-import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { Component, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { useProgress } from '@react-three/drei'
 import { BRAND, PERSONA } from './config'
 import type { Catalog } from './api/types'
 import { PARAMS } from './lib/params'
 import { useStore } from './store'
 import Scene, { hasWebGL } from './scene/Scene'
+import ProductView from './scene/ProductView'
 import { assetExists } from './scene/assets'
 import { fireReady } from './scene/ready'
 import meshes from './contract/meshes.json'
@@ -15,7 +16,6 @@ import { StoreCard } from './ui/StoreCard'
 import { LookBar } from './ui/LookBar'
 import './styles/app.css'
 
-const ProductView = lazy(() => import('./scene/ProductView'))
 
 class SceneBoundary extends Component<{ fallback: ReactNode; children: ReactNode; onFail: () => void }, { failed: boolean }> {
   state = { failed: false }
