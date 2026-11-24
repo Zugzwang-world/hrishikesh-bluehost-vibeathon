@@ -1,6 +1,6 @@
 # NOW
 
-Updated 12:32 IST, 24 Nov 2026. Product: SHOP-UNI-FY. Freeze: 1:30 PM.
+Updated 12:37 IST, 24 Nov 2026. Product: SHOP-UNI-FY. Freeze: 1:30 PM.
 
 ## Live
 
@@ -23,7 +23,7 @@ Updated 12:32 IST, 24 Nov 2026. Product: SHOP-UNI-FY. Freeze: 1:30 PM.
 | D3 Fallback shop | Done, live |
 | E Renders | Stopped 12:30; fal product photos replace its renders |
 | Brief 10 fal | Base, 29 looks, posters, hero video live; live renders cut |
-| Product photos + banners (fal) | Rendering now (Coordinator) |
+| Product photos + banners (fal) | Live: 31 editorial product photos, 5 banners; fal spend 11.68 USD |
 | F Email | Cut |
 
 ## Waiting on the founder
