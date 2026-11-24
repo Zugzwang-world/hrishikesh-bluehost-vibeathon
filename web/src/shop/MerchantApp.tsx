@@ -23,7 +23,7 @@ function Drawer({ o, slug, onClose, onSet }: { o: Order; slug: string; onClose: 
             <h2>{o.customer.name}</h2>
             <span className="a-dim">{when(o.createdAt)}{o.sample ? '' : ' · via SHOP-UNI-FY Stage'}</span>
           </div>
-          <button className="a-x" onClick={onClose} aria-label="Close">×</button>
+          <button className="a-x" onClick={onClose} aria-label="Close" autoFocus>×</button>
         </header>
         <div className="a-drawer__body">
           <section>

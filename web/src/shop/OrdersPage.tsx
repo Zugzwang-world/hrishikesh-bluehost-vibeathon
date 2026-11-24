@@ -56,7 +56,7 @@ export function OrderPage({ number }: { number: string }) {
         <span className="s-demo s-demo--sm">DEMO</span>
       </div>
       <div className="s-prog" aria-label="Delivery progress across stores">
-        <div className="s-prog__bar"><motion.span animate={{ width: `${(o.subs.reduce((a, s) => a + STATUSES.indexOf(s.status), 0) / (3 * o.subs.length)) * 100}%` }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} /></div>
+        <div className="s-prog__bar"><motion.span initial={{ width: 0 }} animate={{ width: `${(o.subs.reduce((a, s) => a + STATUSES.indexOf(s.status), 0) / (3 * o.subs.length)) * 100}%` }} transition={{ type: 'spring', stiffness: 120, damping: 20 }} /></div>
         <span className="s-label">
           {(['Packed', 'Shipped', 'Delivered'] as const).map(st => `${o.subs.filter(s => STATUSES.indexOf(s.status) >= STATUSES.indexOf(st)).length} of ${o.subs.length} ${st.toLowerCase()}`).join(' · ')}
         </span>
