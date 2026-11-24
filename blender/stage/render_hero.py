@@ -408,7 +408,7 @@ def showtime_lights(has_avatar):
              40000 * k, 6.5, blend=0.6, radius=0.3)
         # tight soft face light so the face reads against the bright wall
         head = mark + Vector((0, 0, 1.62))
-        spot("hero_face", W(0.5, 1.9, 5.5), head, (1.0, 0.9, 0.8), opt("--face", 900, float), 4.0, blend=0.9, radius=0.4)
+        spot("hero_face", W(0.4, 1.25, 4.5), head, (1.0, 0.92, 0.84), opt("--face", 1300, float), 5.0, blend=0.9, radius=0.4)
         # cool rim from upstage high
         spot("hero_rim", W(0.0, 6.5, -2.6), mark + Vector((0, 0, 1.4)), (0.55, 0.7, 1.0), 5000 * k, 14, blend=0.5)
     # faint house spill on the audience
@@ -428,9 +428,9 @@ def camera():
         tgt = find(CAM + "_target").matrix_world.translation.copy()
         cam_data.lens = 30
     else:
-        pos = W(0.0, 0.95, 6.3)
-        tgt = W(0.0, 1.85, -2.0)
-        cam_data.lens = 30
+        pos = W(0.0, 0.55, 5.9)     # seated eye level, just in front of the first row
+        tgt = W(0.0, 1.7, -2.0)
+        cam_data.lens = 28
     cam.location = pos
     cam.rotation_euler = (tgt - pos).normalized().to_track_quat("-Z", "Y").to_euler()
     cam_data.clip_end = 200
