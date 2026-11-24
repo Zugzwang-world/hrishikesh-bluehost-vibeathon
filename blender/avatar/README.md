@@ -1,7 +1,10 @@
 # Avatar (Lane A)
 
-Designer-toy man, ~7 heads tall, matte vinyl, faceless head (hair, beard and build carry the likeness).
-Static relaxed A-pose, no rig. Everything is generated in code; no downloaded assets.
+Designer-toy man, ~7 heads tall, matte vinyl, faceless head. The founder's likeness is carried by the
+stylised features, all generated in code (no scan, no downloaded assets): curly dark hair with volume on the
+top and sides, light stubble (`beard` node, own `stubble` material) with a mouth opening, skin tone sampled
+from his photos (#A06C52), and a slim athletic build (narrower waist and hips, lean limbs, same landmarks).
+His gold hex frames come from the wardrobe (`eye_round`), not from the avatar. Static relaxed A-pose, no rig.
 
 ## Rebuild
 
@@ -10,6 +13,8 @@ From the repo root:
 ```
 /opt/homebrew/bin/blender -b --python blender/avatar/build_avatar.py          # writes web/public/models/avatar.glb
 /opt/homebrew/bin/blender -b --python blender/avatar/render_persona.py        # writes web/public/brand/persona.png
+# persona options (env): PERSONA_LIGHT=stage (cobalt/violet stage check), PERSONA_TOP=tee (no wardrobe),
+# PERSONA_TY / PERSONA_DIST / PERSONA_AZ for framing. Default: today's outfit from wardrobe.glb.
 /opt/homebrew/bin/blender -b --python blender/avatar/preview.py -- OUTDIR     # quick Workbench check renders
 ```
 
@@ -23,21 +28,27 @@ Add `-- --save` to the build to also write `blender/avatar/avatar.blend` (not co
 2. Region cuts: clean planar bisects at each region boundary, faces labelled by region, then split into
    separate nodes. Neighbours share their boundary edges exactly (no holes when both are shown).
    Vertex normals are taken from the unsplit body, so seams do not show in shading.
-3. Hair and beard: shells offset from the head surface over an (azimuth, polar) patch with a hairline
-   table, voxel remeshed, smoothed, decimated. Beard has a mouth opening so it reads as moustache + beard.
+3. Hair: a shell offset from the head surface over an (azimuth, polar) patch with a hairline table, plus a
+   few hundred seeded spheres scattered over it (and a loose fringe on the forehead), unioned by a voxel
+   remesh into a mop of curls, then decimated. `hair_capped` is a thin band below the cap line with curls
+   behind the ears only. Stubble is a thin sheet 1.6 to 2.8 mm off the skin; the mouth sinks under the skin.
 
 ## Output (glTF frame: metres, Y up, faces +Z, feet on y = 0)
 
 Nodes: `body_head body_neck body_torso body_hips body_upperarm_L/R body_forearm_L/R body_hand_L/R
 body_thigh_L/R body_shin_L/R body_foot_L/R hair_full hair_capped beard`. `_L` is the figure's left (+X).
-Materials: `skin` (#8A5A3C, roughness 0.55) and `hair` (near black, also used by `beard`).
-Draco compressed, ~36k triangles, ~150 KB.
+Materials: `skin` (#A06C52, roughness 0.55), `hair` (#1C1512) and `stubble` (#725041, used by `beard`).
+Draco compressed, ~41k triangles, ~160 KB.
+
+Bounding boxes for headwear and eyewear fits (metres, glTF frame):
+`body_head` x ±0.095, y 1.50 to 1.744, z -0.093 to 0.113; `hair_full` x ±0.118, y 1.554 to 1.784,
+z -0.120 to 0.130; `hair_capped` x ±0.091, y 1.553 to 1.622, z -0.106 to 0.100; `beard` y 1.502 to 1.603.
 
 ## Landmarks (shared with Lane B)
 
 | Landmark | Value |
 | --- | --- |
-| Height | 1.75 (skull top 1.745, hair top ~1.785) |
+| Height | 1.75 (skull top 1.745, curly hair top ~1.784) |
 | Chin / neck | chin 1.50, neck 1.44 to 1.50 |
 | Shoulder joints | x ±0.19, y 1.42 |
 | Chest | y 1.25, width 0.36, depth 0.24 |
