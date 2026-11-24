@@ -14,7 +14,7 @@ plus avatar.glb and wardrobe.glb when both exist.
 ## Format
 
 - glTF binary, **Draco compressed** (`KHR_draco_mesh_compression`), plus `KHR_materials_emissive_strength`.
-  The web GLTFLoader needs a DRACOLoader (the web ships three's decoder at /draco/). About 175 KB, about 37k triangles.
+  The web GLTFLoader needs a DRACOLoader (the web ships three's decoder at /draco/). About 240 KB, about 52k triangles.
 - Metres, Y up, audience toward +Z. All transforms applied (meshes sit at identity).
 - No lights, no cameras. Hooks are empty nodes (plain `Object3D` in three.js).
 
@@ -56,7 +56,10 @@ Spot positions sit at the fixture lens; check_glb.py prints the exact values.
 | turntable_ring | turntable | Faint ring at avatar_fit (the turntable disc itself is `turntable`, flush at y 0.0015) |
 | light_cone | light_cones | Open cones from every moving head, UV v = 0 at the lens, 1 at the far end (use it to fade). Make additive + transparent in the web |
 
-Other materials (dark, static): stage_deck, stage_fascia, floor_house, drape, bezel, truss,
+stage_deck carries a small procedural JPEG (512 px tile = 2 x 2 m: platform seams and faint mottling),
+UV 1 unit = 2 m, sampler repeat. It is the only texture in the file.
+
+Other materials (dark, static): stage_deck, stage_deck_edge, stage_fascia, floor_house, drape, bezel, truss,
 fixture_metal, fixture_lens, podium, podium_top, mic_metal, monitor, monitor_grille, seat, audience,
 turntable, house_wall, exit_sign (emissive green), aisle_light (emissive warm).
 
