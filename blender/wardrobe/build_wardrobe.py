@@ -340,6 +340,24 @@ def volume_to_shell(name, build, voxel, smooth_iter, cuts, keep_islands_frac=0.0
     return ob
 
 
+def lap_smooth(ob, factor, iters):
+    """Laplacian smoothing that leaves open edges (hems, cuffs, necklines) in place, so hems never curl in."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    inner = [v for v in bm.verts if not v.is_boundary]
+    for _ in range(int(iters)):
+        new = []
+        for v in inner:
+            nb = [e.other_vert(v) for e in v.link_edges]
+            if nb:
+                avg = sum((u.co for u in nb), Vector()) / len(nb)
+                new.append((v, v.co + (avg - v.co) * factor))
+        for v, c in new:
+            v.co = c
+    bm.to_mesh(ob.data)
+    bm.free()
+
+
 def fit_outside(ob, targets, offset=None, maxdist=0.06, ymin=None, passes=2):
     """Push garment verts outside each target by its offset. Only targets within maxdist count,
     so far-away rims/edges never drag geometry (no fins)."""
@@ -381,14 +399,41 @@ def fit_outside(ob, targets, offset=None, maxdist=0.06, ymin=None, passes=2):
                     moved += 1
             v.co = co
     me.update()
-    sm = ob.modifiers.new("relax", "SMOOTH")  # soften the push-out creases a touch
-    sm.factor = 0.25
-    sm.iterations = 1
-    apply_mods(ob)
+    lap_smooth(ob, 0.25, 1)
     print(f"WARDROBE:   fit {ob.name}: moved {moved}")
 
 
 SHELLS = {}
+
+
+def hang(ob, y0, bins=90, xmax=0.30):
+    """Let the hem fall straight: below y0 no torso vertex sits closer to the body axis than the ring at y0."""
+    me = ob.data
+    ring = [0.0] * bins
+
+    def ang(co):
+        return int(((math.atan2(-co.y, co.x) + math.pi) / (2 * math.pi)) * bins) % bins
+
+    for v in me.vertices:
+        if abs(v.co.z - y0) < 0.012 and abs(v.co.x) < xmax:
+            b = ang(v.co)
+            ring[b] = max(ring[b], math.hypot(v.co.x, v.co.y))
+    for i in range(bins):  # fill empty bins from neighbours
+        if ring[i] == 0.0:
+            ring[i] = max(ring[i - 1], ring[(i + 1) % bins])
+    moved = 0
+    for v in me.vertices:
+        if v.co.z < y0 and abs(v.co.x) < xmax:
+            r = math.hypot(v.co.x, v.co.y)
+            tgt = ring[ang(v.co)]
+            if 1e-6 < r < tgt:
+                f = tgt / r
+                v.co.x *= f
+                v.co.y *= f
+                moved += 1
+    me.update()
+    lap_smooth(ob, 0.5, 2)
+    print(f"WARDROBE:   hang {ob.name}: {moved}")
 
 
 def smoothstep(a, b, x):
@@ -415,10 +460,7 @@ def tighten(ob, body, ease, keep=0.4, maxdist=0.12, pred=None, iters=2, weight=N
             dn = d + (ease + (d - ease) * keep - d) * w
             v.co = loc + nrm * dn + (v.co - loc - nrm * d)
     me.update()
-    sm = ob.modifiers.new("relax", "SMOOTH")
-    sm.factor = 0.5
-    sm.iterations = iters
-    apply_mods(ob)
+    lap_smooth(ob, 0.5, iters)
 
 
 def cinch(ob, body, pred, offset, falloff=0.045, maxdist=0.25):
@@ -486,7 +528,12 @@ def is_neck(c):
 
 
 def is_cuff(c):
-    return abs(c.x) > 0.2 and gy(c) > 0.85
+    """Open edge of a sleeve: near the arm axis, past the shoulder (never the hem at the hip)."""
+    sd = 1 if c.x >= 0 else -1
+    s0, d, _, _ = arm_frame(sd)
+    rel = c - s0
+    t = rel.dot(d)
+    return t > 0.12 and (rel - d * t).length < 0.13
 
 
 def finish(ob, target_tris, thickness, solid_offset=1.0, sharp_deg=None):
@@ -565,7 +612,7 @@ def set_material(ob):
 
 
 # ---------------------------------------------------------------- garments
-def torso_rings(extra, hem=0.88, top_neck=1.56, neck_r=(0.078, 0.075), shoulder=0.0, n=2.6):
+def torso_rings(extra, hem=0.83, top_neck=1.56, neck_r=(0.078, 0.075), shoulder=0.0, n=2.6):
     """Shirt-like torso (glTF). extra = looseness added to the body numbers."""
     e = extra
     return [
@@ -638,7 +685,7 @@ def build_top_oversized(body, under):
     extra = 0.035
 
     def build(bm):
-        loft(bm, torso_rings(extra, hem=0.84, shoulder=0.025), 44)
+        loft(bm, torso_rings(extra, hem=0.80, shoulder=0.025), 44)
         for side in (1, -1):
             s, d, w, v = arm_frame(side)
             tube_along(bm, s + G(0.03 * side, -0.02, 0) - G(0, 0, 0), d, w, v,
@@ -706,7 +753,7 @@ def opening_half(y, button_y, top_y, top_half, hem_y, hem_half):
 
 def build_outer(name, body, under, length_y, extra, lapel):
     def build(bm):
-        loft(bm, torso_rings(extra, hem=length_y - 0.04, top_neck=1.58, neck_r=(0.095, 0.092), shoulder=0.012), 44)
+        loft(bm, torso_rings(extra, hem=length_y - 0.11, top_neck=1.58, neck_r=(0.095, 0.092), shoulder=0.012), 44)
         for side in (1, -1):
             sleeve(bm, side, [(-0.02, 0.095, 0.095), (0.0, 0.098, 0.098), (0.15, 0.092, 0.092), (0.29, 0.076, 0.076),
                               (0.50, 0.06, 0.062), (0.60, 0.06, 0.062)])
@@ -722,6 +769,7 @@ def build_outer(name, body, under, length_y, extra, lapel):
     if not lapel:  # the blazer keeps its structured, built shape
         tighten(ob, body, 0.03, 0.55, weight=lambda c: smoothstep(length_y + 0.06, length_y + 0.24, gy(c)))
     fit_outside(ob, [(body, 0.025)] + [(u, 0.011) for u in under])
+    hang(ob, 0.97)
     cinch(ob, body, lambda c: is_cuff(c) and gy(c) < 1.05, 0.013, falloff=0.07)
     if lapel:
         add_lapels(ob, 1.05, 1.50, 0.105, length_y, 0.07)
