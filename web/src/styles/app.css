@@ -30,7 +30,7 @@ img { display: block; }
 .mono { font-family: var(--font-mono); }
 
 /* store cards */
-.store-card { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--brand); border-radius: var(--radius); display: flex; flex-direction: column; animation: card-in 520ms var(--ease-out) both; animation-delay: calc(var(--i) * 70ms); transition: box-shadow var(--dur); }
+.store-card { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--brand); border-radius: var(--radius); display: flex; flex-direction: column; animation: card-in 620ms var(--ease-spring) both; animation-delay: calc(var(--i) * 70ms); transition: box-shadow var(--dur); }
 @keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
 .store-card.is-open { box-shadow: 0 0 0 2px var(--c-cobalt), var(--shadow); }
 .store-card__head { display: grid; grid-template-columns: auto 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px 8px; border: 0; background: transparent; text-align: left; }
@@ -98,7 +98,7 @@ img { display: block; }
 @keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
 
 /* product rail */
-.product-rail { margin-top: auto; align-self: center; width: min(980px, 100%); background: var(--glass); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); border: 1px solid var(--line); border-top: 3px solid var(--brand); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px 12px; position: relative; z-index: 2; animation: rail-in 320ms var(--ease-out); }
+.product-rail { margin-top: auto; align-self: center; width: min(980px, 100%); background: var(--glass); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); border: 1px solid var(--line); border-top: 3px solid var(--brand); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px 12px; position: relative; z-index: 2; animation: rail-in 420ms var(--ease-spring); }
 @keyframes rail-in { from { opacity: 0; transform: translateY(14px); } }
 .product-rail__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; font-size: var(--text-sm); }
 .product-rail__head span { color: var(--ink-dim); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

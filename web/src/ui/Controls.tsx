@@ -70,7 +70,7 @@ export function StageCheckCard() {
     <AnimatePresence>
       {show && (
         <motion.div className="stage-check" initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }} role="dialog" aria-label="Stage check">
+          transition={{ type: "spring", stiffness: 260, damping: 24 }} role="dialog" aria-label="Stage check">
           {!check ? <div className="stage-check__loading">Checking the look under the lights…</div> : (
             <>
               <div className="stage-check__top">

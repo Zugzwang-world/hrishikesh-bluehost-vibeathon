@@ -45,6 +45,7 @@
   --card-w: 112px;
   --sheet-peek: 64px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --dur: 220ms;
   --text-xs: 11px;
   --text-sm: 13px;
