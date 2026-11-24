@@ -38,7 +38,7 @@ ELBOW_T, WRIST_T, TIP_T = 0.29, 0.55, 0.74
 SLEEVE_T = 0.18
 
 HEAD_C = Vector((0.0, 1.6225, 0.008))
-HEAD_R = Vector((0.0815, 0.1225, 0.100))
+HEAD_R = Vector((0.0865, 0.1225, 0.102))
 
 
 def srgb_to_linear(c):
@@ -136,6 +136,22 @@ class MB:
         return ob
 
 
+def catmull(keys, step):
+    """Resample (y, a, b, c) keys with a Catmull-Rom spline every `step` in y."""
+    out = []
+    k = [keys[0]] + list(keys) + [keys[-1]]
+    for i in range(1, len(k) - 2):
+        p0, p1, p2, p3 = k[i - 1], k[i], k[i + 1], k[i + 2]
+        n = max(1, int(round((p2[0] - p1[0]) / step)))
+        for j in range(n):
+            t = j / n
+            t2, t3 = t * t, t * t * t
+            out.append(tuple(0.5 * ((2 * p1[q]) + (-p0[q] + p2[q]) * t + (2 * p0[q] - 5 * p1[q] + 4 * p2[q] - p3[q]) * t2
+                                    + (-p0[q] + 3 * p1[q] - 3 * p2[q] + p3[q]) * t3) for q in range(4)))
+    out.append(keys[-1])
+    return out
+
+
 def superellipse_ring(y, hw, hd, cz=0.0, n=56, e=2.5):
     pts = []
     for i in range(n):
@@ -154,7 +170,7 @@ def head_point(u, v, off=0.0):
     p = Vector((HEAD_R.x * un.x, HEAD_R.y * un.y, HEAD_R.z * un.z))
     nrm = Vector((un.x / HEAD_R.x, un.y / HEAD_R.y, un.z / HEAD_R.z)).normalized()
     s = max(0.0, -un.y)
-    p.x *= 1.0 - 0.20 * s * s
+    p.x *= 1.0 - 0.13 * s * s
     p.z += 0.016 * s * s
     # slightly flatter face plane, fuller back of skull
     if un.z > 0:
@@ -169,24 +185,28 @@ def head_deform(p, un):
 # ---------------------------------------------------------------- body primitives
 def build_body_mb():
     mb = MB()
-    # torso loft: (y, half width, half depth, z centre)
+    # torso loft: (y, half width, half depth, z centre), Catmull-Rom resampled
     rings = [
-        (0.835, 0.115, 0.085, -0.005),
+        (0.830, 0.100, 0.075, -0.005),
         (0.865, 0.160, 0.112, -0.010),
         (0.920, 0.180, 0.120, -0.012),
         (0.975, 0.170, 0.112, -0.006),
         (1.050, 0.150, 0.105, 0.000),
-        (1.150, 0.163, 0.112, 0.006),
+        (1.150, 0.163, 0.113, 0.006),
         (1.250, 0.180, 0.120, 0.010),
-        (1.330, 0.182, 0.114, 0.004),
-        (1.390, 0.168, 0.100, -0.002),
-        (1.430, 0.130, 0.078, -0.008),
-        (1.460, 0.070, 0.060, -0.012),
+        (1.330, 0.186, 0.115, 0.004),
+        (1.390, 0.182, 0.100, -0.004),
+        (1.430, 0.160, 0.082, -0.010),
+        (1.460, 0.095, 0.065, -0.012),
+        (1.470, 0.040, 0.040, -0.012),
     ]
-    rows = [superellipse_ring(y, hw, hd, cz) for (y, hw, hd, cz) in rings]
-    mb.loft(rows, cap0=(0, 0.83, -0.005), cap1=(0, 1.465, -0.012))
+    rows = [superellipse_ring(y, hw, hd, cz) for (y, hw, hd, cz) in catmull(rings, 0.008)]
+    mb.loft(rows, cap0=(0, 0.828, -0.005), cap1=(0, 1.472, -0.012))
+    # trapezius: soften the neck-to-shoulder line
+    for s in (1, -1):
+        mb.ellipsoid((0.10 * s, 1.425, -0.012), (0.095, 0, 0), (0, 0.040, 0), (0, 0, 0.070), nu=32, nv=14)
     # neck
-    mb.tube((0, 1.40, -0.014), (0, 1.60, -0.006), [(0, 0.057), (0.5, 0.055), (1, 0.055)], n=32)
+    mb.tube((0, 1.40, -0.014), (0, 1.60, -0.006), [(0, 0.062), (0.35, 0.059), (1, 0.058)], n=32)
     # head
     mb.ellipsoid(HEAD_C, (HEAD_R.x, 0, 0), (0, HEAD_R.y, 0), (0, 0, HEAD_R.z), nu=64, nv=40, fn=head_deform)
     for s in (1, -1):
@@ -295,12 +315,12 @@ PART_X = 0.034  # side part on the figure's left (+X)
 def hair_full_off(u, v, va, vb):
     p = head_point(u, v)
     rel = p - HEAD_C
-    off = 0.010
+    off = 0.0065 + 0.0045 * smoothstep(-0.02, 0.08, rel.y)
     # volume on top, heavier toward the sweep side (-X) and front
     top = math.exp(-((v - D(15)) / D(40)) ** 2)
-    off += 0.018 * top * (1.0 + 0.35 * max(-1.0, min(1.0, -rel.x / HEAD_R.x)))
+    off += 0.024 * top * (1.0 + 0.35 * max(-1.0, min(1.0, -rel.x / HEAD_R.x)))
     front = math.exp(-((u) / D(45)) ** 2) * math.exp(-((v - D(40)) / D(22)) ** 2)
-    off += 0.012 * front
+    off += 0.016 * front
     # side part groove, front to crown
     if rel.y > 0.06 and rel.z > -0.06:
         g = math.exp(-((rel.x - PART_X) / 0.005) ** 2)
@@ -322,16 +342,16 @@ def hair_capped_off(u, v, va, vb):
 CAP_V = math.acos((1.62 - HEAD_C.y) / HEAD_R.y)  # polar angle of the cap line
 
 
-BEARD_TOP = [(0, 107), (15, 106), (30, 103), (55, 100), (70, 99), (84, 98)]
+BEARD_TOP = [(0, 106), (16, 107), (28, 111), (42, 113), (58, 108), (72, 101), (84, 98)]
 BEARD_BOT = [(0, 164), (30, 157), (55, 145), (70, 131), (84, 118)]
 
 
 def beard_off(u, v, va, vb):
-    off = 0.0075
-    chin = math.exp(-(u / D(28)) ** 2) * math.exp(-((v - D(140)) / D(18)) ** 2)
-    off += 0.005 * chin
-    must = math.exp(-(u / D(22)) ** 2) * math.exp(-((v - D(110)) / D(5)) ** 2)
-    off += 0.002 * must
+    off = 0.0062
+    chin = math.exp(-(u / D(26)) ** 2) * math.exp(-((v - D(142)) / D(16)) ** 2)
+    off += 0.0045 * chin
+    must = math.exp(-(u / D(20)) ** 2) * math.exp(-((v - D(111)) / D(5)) ** 2)
+    off += 0.0025 * must
     t = smoothstep(0.0, D(8), vb - v) * smoothstep(0.0, D(6), v - va)
     tu = smoothstep(0.0, D(10), D(84) - abs(u))
     return 0.002 + (off - 0.002) * t * tu
@@ -547,7 +567,7 @@ def main():
     hair = make_material("hair", HAIR_SRGB, HAIR_ROUGH)
 
     body = build_body_mb().to_object("body_tmp")
-    remesh_smooth_decimate(body, 0.0055, 8, 0.6, BODY_TRIS)
+    remesh_smooth_decimate(body, 0.0055, 14, 0.6, BODY_TRIS)
     split_body(body, skin)
 
     for name, builder, target, voxel in (("hair_full", build_hair_full, HAIR_TRIS, 0.0028),
