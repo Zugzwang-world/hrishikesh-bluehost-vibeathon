@@ -32,7 +32,7 @@
     <script>
       (function () {
         var p = document.getElementById('poster'), q = new URLSearchParams(location.search), path = location.pathname
-        if (/^\/(bag|checkout|orders)/.test(path)) { p.remove(); return }
+        if (/^\/(bag|checkout|orders|store)/.test(path)) { p.remove(); return }
         var h
         if (path.indexOf('/product') === 0) {
           var sku = (q.get('sku') || '').replace(/[^A-Za-z0-9-]/g, '').toUpperCase()
