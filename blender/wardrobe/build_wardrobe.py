@@ -962,6 +962,10 @@ def build_shoe(name, body, kind):
         if kind == "sneaker":  # padded tongue rising out of the throat
             loft(bm, [hring(0.11 * side, 0.080, 0.072, 0.028, 0.008, 3), hring(0.11 * side, 0.104, 0.056, 0.029, 0.009, 3),
                       hring(0.11 * side, 0.124, 0.040, 0.028, 0.008, 3)], 24)
+            for t in (0.05, 0.3, 0.55, 0.8):  # laces across the tongue
+                y = 0.080 + 0.044 * t
+                z = 0.072 - 0.032 * t + 0.010
+                capsule(bm, G(0.11 * side - 0.027, y - 0.002, z - 0.004), G(0.11 * side + 0.027, y - 0.002, z - 0.004), 0.0021, 8)
     ob = bm_to_obj(name, bm)
     so = ob.modifiers.new("t", "SOLIDIFY")
     so.thickness = 0.005
