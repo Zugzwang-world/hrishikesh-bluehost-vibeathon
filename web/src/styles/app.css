@@ -179,3 +179,11 @@ img { display: block; }
   .stage-check { top: auto; bottom: calc(var(--gutter) + 56px); right: var(--gutter); margin: 0; max-height: 70%; }
   .controls .btn { padding: 8px 12px; }
 }
+
+/* showtime: the stores slide away and the stage takes the room (desktop) */
+@media (min-width: 768px) {
+  /* no animated grid tracks: one canvas resize, not 40 */
+  .exp__col { transition: opacity 260ms var(--ease-out); }
+  .app[data-mode='show'] .exp { grid-template-columns: 0px minmax(0, 1fr) 0px; column-gap: 0; }
+  .app[data-mode='show'] .exp__col { opacity: 0; pointer-events: none; overflow: hidden; }
+}

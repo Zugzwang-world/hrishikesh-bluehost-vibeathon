@@ -8,7 +8,7 @@ import {
 import meshes from '../contract/meshes.json'
 import { useStore } from '../store'
 import { PARAMS } from '../lib/params'
-import { ANCHORS, clamp01, easeInOutCubic, live, type AnchorName } from './anchors'
+import { ANCHORS, clamp01, easeInOutCubic, live, REDUCED_MOTION, type AnchorName } from './anchors'
 import { DRACO_PATH } from './assets'
 import { ledTexture, ledTextureGltf } from './ledTexture'
 
@@ -245,7 +245,7 @@ export function CameraRig() {
       if (st.shot === '') { camera.position.copy(ANCHORS[shot]); st.tgt.copy(ANCHORS[(shot + '_target') as AnchorName]) }
       st.shot = shot; st.t0 = now; st.fromPos.copy(camera.position); st.fromTgt.copy(st.tgt)
     }
-    const k = easeInOutCubic(clamp01((now - st.t0) / 2.5))
+    const k = easeInOutCubic(clamp01((now - st.t0) / (REDUCED_MOTION ? 0.6 : 2.5)))
     st.pos.copy(ANCHORS[shot])
     st.aim.copy(ANCHORS[(shot + '_target') as AnchorName])
     const aspect = size.width / Math.max(1, size.height)

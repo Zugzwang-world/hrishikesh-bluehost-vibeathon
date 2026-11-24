@@ -35,3 +35,5 @@ export const turntable = { yaw: 0, vel: 0, dragging: false, lastInteract: 0, fac
 
 export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 export const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t)
+
+export const REDUCED_MOTION = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches

@@ -7,7 +7,7 @@ import { SLOTS } from '../config'
 import type { Product } from '../api/types'
 import { productBySku, useStore } from '../store'
 import { PARAMS } from '../lib/params'
-import { ANCHORS, clamp01, easeInOutCubic, live, turntable } from './anchors'
+import { ANCHORS, clamp01, easeInOutCubic, live, REDUCED_MOTION, turntable } from './anchors'
 import { DRACO_PATH, useAssetExists } from './assets'
 import { garmentMaterial, printTexture } from './materials'
 import { PrimitiveBody, PrimitiveGarment } from './Primitives'
@@ -235,7 +235,7 @@ export function Avatar() {
         } else {
           turntable.vel *= Math.pow(0.04, dt)
           const idle = pnow - turntable.lastInteract > 2200
-          turntable.yaw += (turntable.vel + (idle ? 0.22 : 0)) * dt
+          turntable.yaw += (turntable.vel + (idle && !REDUCED_MOTION ? 0.22 : 0)) * dt
         }
       }
     }
