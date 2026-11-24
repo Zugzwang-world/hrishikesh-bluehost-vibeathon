@@ -223,8 +223,22 @@ class Part:
                                               ((i + 1) / segs, tb), (i / segs, tb))):
                     loop[self.uv].uv = uv
 
-    def sphere(self, center, radii, material, segs=8, rings=5):
-        m = Matrix.Translation(W(*center)) @ Matrix.Diagonal((*WS(*radii), 1.0))
+    def vcyl(self, center, height, rx, rz, material, rot=None, top=1.0, segs=8):
+        """Vertical elliptical (optionally tapered) open tube, web coords."""
+        m = Matrix.Translation(W(*center))
+        if rot is not None:
+            m = m @ rot
+        m = m @ Matrix.Diagonal((rx, rz, 1.0, 1.0))
+        res = bmesh.ops.create_cone(self.bm, cap_ends=False, cap_tris=False, segments=segs,
+                                    radius1=1.0, radius2=top, depth=height, matrix=m)
+        self._tag(self._faces_of(res["verts"]), material, smooth=True)
+        return res
+
+    def sphere(self, center, radii, material, segs=8, rings=5, rot=None):
+        m = Matrix.Translation(W(*center))
+        if rot is not None:
+            m = m @ rot
+        m = m @ Matrix.Diagonal((*WS(*radii), 1.0))
         res = bmesh.ops.create_uvsphere(self.bm, u_segments=segs, v_segments=rings,
                                         radius=1.0, matrix=m)
         self._tag(self._faces_of(res["verts"]), material, smooth=True)
@@ -516,11 +530,16 @@ def build_audience():
                 if random.random() < 0.78:
                     s = random.uniform(0.92, 1.08)
                     lean = random.uniform(-0.03, 0.03)
-                    people.box(R(lean, 0.78 * s, 0.06), (0.36 * s, 0.50 * s, 0.22), "audience", rot=rot)
-                    people.sphere(R(lean, 1.05 * s, 0.06), (0.22 * s, 0.07, 0.13), "audience", segs=8, rings=4)
-                    people.cyl(R(lean, 1.04 * s, 0.06), R(lean, 1.16 * s, 0.07), 0.045, "audience", segs=6, caps=False)
+                    # torso (tapered elliptical tube), shoulders, upper arms, neck, head
+                    people.vcyl(R(lean, 0.76 * s, 0.07), 0.48 * s, 0.165 * s, 0.11, "audience", rot=rot, top=1.15, segs=8)
+                    people.sphere(R(lean, 1.0 * s, 0.07), (0.215 * s, 0.075, 0.125), "audience", segs=10, rings=5, rot=rot)
+                    for side in (-1, 1):
+                        people.cyl(R(lean + side * 0.2 * s, 0.98 * s, 0.07), R(lean + side * 0.22 * s, 0.68 * s, 0.0),
+                                   0.05 * s, "audience", segs=5, caps=False)
+                    people.cyl(R(lean, 1.0 * s, 0.07), R(lean, 1.15 * s, 0.075), 0.05, "audience", segs=6, caps=False)
                     hr = 0.105 * s
-                    people.sphere(R(lean + random.uniform(-0.02, 0.02), 1.26 * s, 0.05), (hr * 0.85, hr * 1.1, hr), "audience", segs=8, rings=6)
+                    people.sphere(R(lean + random.uniform(-0.02, 0.02), 1.26 * s, 0.06), (hr * 0.86, hr * 1.12, hr * 0.98),
+                                  "audience", segs=10, rings=7, rot=rot)
     seats.finish()
     people.finish()
 
