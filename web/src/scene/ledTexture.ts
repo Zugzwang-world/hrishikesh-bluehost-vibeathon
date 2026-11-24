@@ -2,6 +2,16 @@ import { CanvasTexture, SRGBColorSpace } from 'three'
 import { LED_WALL_COLOR, SPEAKER, TALK_TITLE } from './anchors'
 
 let tex: CanvasTexture | null = null
+let texGltf: CanvasTexture | null = null
+
+/** Same canvas with flipY=false for glTF UVs. */
+export function ledTextureGltf(): CanvasTexture {
+  if (texGltf) return texGltf
+  texGltf = ledTexture().clone()
+  texGltf.flipY = false
+  texGltf.needsUpdate = true
+  return texGltf
+}
 
 /** 16:9 canvas for the LED wall: speaker name and talk title. */
 export function ledTexture(): CanvasTexture {

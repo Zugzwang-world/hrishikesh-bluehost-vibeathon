@@ -2,14 +2,14 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import {
-  AdditiveBlending, Color, DirectionalLight, DoubleSide, HemisphereLight, AmbientLight, Mesh, MeshBasicMaterial,
-  MeshStandardMaterial, Object3D, Quaternion, SpotLight, Vector3, type Material,
+  AdditiveBlending, Color, DirectionalLight, FrontSide, HemisphereLight, AmbientLight, Mesh, MeshBasicMaterial,
+  MeshStandardMaterial, Object3D, PerspectiveCamera, Quaternion, SpotLight, Vector3, type Material,
 } from 'three'
 import meshes from '../contract/meshes.json'
 import { useStore } from '../store'
 import { ANCHORS, clamp01, easeInOutCubic, type AnchorName } from './anchors'
 import { DRACO_PATH } from './assets'
-import { ledTexture } from './ledTexture'
+import { ledTexture, ledTextureGltf } from './ledTexture'
 
 /** 0 = rehearsal, 1 = showtime. Eased in Lights, read by stage materials. */
 export const stageFx = { mix: 0 }
@@ -23,17 +23,24 @@ function useFxMaterials(mats: FxMats) {
     for (const m of mats.led) m.emissiveIntensity = lerp(0.55, 1.25, k)
     const pulse = 0.85 + 0.15 * Math.sin(clock.elapsedTime * 2.2)
     for (const m of mats.strip) m.emissiveIntensity = lerp(0.6, 3.2 * pulse, k)
-    for (const m of mats.cone) { m.opacity = 0.11 * k; m.visible = k > 0.01 }
+    for (const m of mats.cone) { m.opacity = 0.035 * k; m.visible = k > 0.01 }
     for (const m of mats.mark) m.emissiveIntensity = lerp(0.4, 2.0, k)
   })
 }
 
-function setupLed(m: MeshStandardMaterial) {
-  const t = ledTexture()
+function setupLed(m: MeshStandardMaterial, gltf = false) {
+  const t = gltf ? ledTextureGltf() : ledTexture()
   m.map = t; m.emissiveMap = t; m.emissive = new Color('#ffffff'); m.color = new Color('#ffffff'); m.roughness = 0.6; m.metalness = 0; m.toneMapped = false; m.needsUpdate = true
 }
 function setupCone(m: MeshStandardMaterial | MeshBasicMaterial) {
-  m.transparent = true; m.blending = AdditiveBlending; m.depthWrite = false; m.side = DoubleSide; m.opacity = 0; m.needsUpdate = true
+  // FrontSide: a camera inside a cone sees nothing (no white-out on close shots)
+  m.transparent = true; m.blending = AdditiveBlending; m.depthWrite = false; m.side = FrontSide; m.opacity = 0; m.toneMapped = false
+  const sm = m as MeshStandardMaterial
+  if (sm.isMeshStandardMaterial) {
+    if (sm.emissive.getHex() === 0) sm.emissive.copy(sm.color.getHex() === 0 ? new Color('#fff1d6') : sm.color)
+    sm.color.set('#000000'); sm.emissiveIntensity = 1; sm.roughness = 1; sm.metalness = 0
+  }
+  m.needsUpdate = true
 }
 
 const UP = new Vector3(0, 1, 0)
@@ -103,7 +110,7 @@ export function GlbStage() {
         if (seen.has(m)) continue
         seen.add(m)
         const n = m.name || ''
-        if (n.startsWith('led_wall')) { setupLed(m); out.led.push(m) }
+        if (n.startsWith('led_wall')) { setupLed(m, true); out.led.push(m) }
         else if (n.startsWith('led_strip')) { m.toneMapped = false; if (m.emissive && m.emissive.getHex() === 0) m.emissive.set('#3d7bff'); out.strip.push(m) }
         else if (n.startsWith('center_mark')) { m.toneMapped = false; if (m.emissive && m.emissive.getHex() === 0) m.emissive.set('#f2c14e'); out.mark.push(m) }
         else if (n.startsWith('light_cone')) { setupCone(m); mesh.renderOrder = 3; mesh.castShadow = false; out.cone.push(m) }
@@ -144,9 +151,9 @@ export function Lights() {
     if (fill.current) fill.current.intensity = lerp(1.0, 0, k)
     if (rim.current) rim.current.intensity = lerp(0.9, 2.2, k)
     const pulse = 1 + 0.08 * Math.sin(clock.elapsedTime * 1.7)
-    if (sL.current) { sL.current.position.copy(ANCHORS.spot_L); sL.current.intensity = lerp(0, 70, k) * pulse }
-    if (sR.current) { sR.current.position.copy(ANCHORS.spot_R); sR.current.intensity = lerp(0, 70, k) / pulse }
-    if (sC.current) { sC.current.position.copy(ANCHORS.spot_C); sC.current.intensity = lerp(0, 110, k) }
+    if (sL.current) { sL.current.position.copy(ANCHORS.spot_L); sL.current.intensity = lerp(0, 38, k) * pulse }
+    if (sR.current) { sR.current.position.copy(ANCHORS.spot_R); sR.current.intensity = lerp(0, 38, k) / pulse }
+    if (sC.current) { sC.current.position.copy(ANCHORS.spot_C); sC.current.intensity = lerp(0, 55, k) }
     targets[0].position.copy(ANCHORS.spot_target_L)
     targets[1].position.copy(ANCHORS.spot_target_R)
     targets[2].position.copy(ANCHORS.spot_target_C)
@@ -196,9 +203,17 @@ export function CameraRig() {
     const k = easeInOutCubic(clamp01((now - st.t0) / 2.5))
     st.pos.copy(ANCHORS[shot])
     st.aim.copy(ANCHORS[(shot + '_target') as AnchorName])
-    // portrait screens: back the camera off so the whole avatar fits
     const aspect = size.width / Math.max(1, size.height)
-    if (aspect < 1.1) { const f = Math.min(2.1, 1.1 / aspect); st.pos.sub(st.aim).multiplyScalar(f).add(st.aim) }
+    if (shot === 'cam_fit') {
+      // frame the whole avatar above the product rail: 3 m tall, 1.7 m wide window, centre at 0.55 m
+      const tan = Math.tan(((camera as PerspectiveCamera).fov * Math.PI) / 360)
+      const dist = Math.max(1.5 / tan, 0.85 / (tan * aspect))
+      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + 0.55, ANCHORS.avatar_fit.z)
+      st.pos.sub(ANCHORS.cam_fit_target).normalize().multiplyScalar(dist).add(st.aim)
+    } else if (aspect < 1.1) {
+      // portrait screens: back the camera off so the whole avatar fits
+      const f = Math.min(2.1, 1.1 / aspect); st.pos.sub(st.aim).multiplyScalar(f).add(st.aim)
+    }
     camera.position.lerpVectors(st.fromPos, st.pos, k)
     st.tgt.lerpVectors(st.fromTgt, st.aim, k)
     camera.lookAt(st.tgt)
