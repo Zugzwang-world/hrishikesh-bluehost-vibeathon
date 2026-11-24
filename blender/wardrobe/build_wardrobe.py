@@ -428,6 +428,11 @@ def finish(ob, target_tris, thickness, solid_offset=1.0, sharp_deg=None):
         so.use_rim = True
         so.use_even_offset = False
         apply_mods(ob)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.to_mesh(ob.data)
+    bm.free()
     tri = ob.modifiers.new("tri", "TRIANGULATE")
     apply_mods(ob)
     me = ob.data
@@ -707,44 +712,65 @@ def build_bottom_slim(body, under):
 
 
 # ---------------------------------------------------------------- shoes
-def shoe_rings(side, kind):
-    x = 0.11 * side
-    if kind == "sneaker":
-        prof = [  # y, z-centre, half-length, half-width, exponent
-            (0.000, 0.080, 0.150, 0.060, 2.6),
-            (0.012, 0.080, 0.154, 0.062, 2.6),
-            (0.030, 0.080, 0.152, 0.061, 2.6),
-            (0.034, 0.079, 0.146, 0.057, 2.5),
-            (0.060, 0.074, 0.138, 0.055, 2.4),
-            (0.082, 0.050, 0.108, 0.052, 2.3),
-            (0.102, 0.012, 0.072, 0.049, 2.2),
-            (0.122, -0.006, 0.058, 0.047, 2.1),
-            (0.132, -0.012, 0.054, 0.047, 2.0),
-        ]
-    else:  # loafer: low, sleek, thin sole, low vamp
-        prof = [
-            (0.000, 0.082, 0.147, 0.055, 2.8),
-            (0.014, 0.082, 0.150, 0.057, 2.8),
-            (0.018, 0.082, 0.145, 0.054, 2.6),
-            (0.045, 0.078, 0.140, 0.052, 2.4),
-            (0.068, 0.058, 0.115, 0.049, 2.2),
-            (0.090, 0.018, 0.080, 0.046, 2.1),
-            (0.100, 0.000, 0.068, 0.045, 2.0),
-        ]
-    rings = []
-    for (y, zc, L, W, n) in prof:
-        rings.append(hring(x, y, zc, W, L, n))
-    return rings
+def shoe_ring(bm, side, y, zc, L, W, n, seg=48, spring=0.0, tilt=0.0):
+    """One ring of a foot-shaped outline (narrow heel, wide ball, round toe), tilted so it drops toward the toe."""
+    ring = []
+    for i in range(seg):
+        t = 2 * math.pi * i / seg
+        u, s_ = math.cos(t), math.sin(t)
+        z = zc + L * math.copysign(abs(u) ** (2.0 / n), u)
+        g = 0.80 + 0.22 * min(1.0, max(0.0, (u + 1.0) / 1.3)) - 0.06 * max(0.0, u - 0.7) / 0.3
+        x = 0.11 * side + W * g * math.copysign(abs(s_) ** (2.0 / n), s_) - 0.006 * side * max(0.0, u)
+        yy = y + spring * max(0.0, (z - 0.13) / 0.10) ** 2 + tilt * (z - zc)
+        ring.append(bm.verts.new(G(x, yy, z)))
+    return ring
+
+
+def shoe_volume(bm, side, prof, seg=48):
+    rings = [shoe_ring(bm, side, y, zc, L, W, n, seg=seg, spring=sp, tilt=tl) for (y, zc, L, W, n, sp, tl) in prof]
+    for r0, r1 in zip(rings[:-1], rings[1:]):
+        for i in range(seg):
+            j = (i + 1) % seg
+            bm.faces.new((r0[i], r0[j], r1[j], r1[i]))
+    bm.faces.new(list(reversed(rings[0])))  # sole closed, collar open
+
+
+SNEAKER = [  # y, z-centre, half-length, half-width, exponent, toe spring, tilt
+    (0.000, 0.081, 0.146, 0.056, 2.8, 0.016, 0.0),
+    (0.004, 0.081, 0.150, 0.058, 2.8, 0.016, 0.0),
+    (0.024, 0.081, 0.153, 0.060, 2.8, 0.016, 0.0),
+    (0.029, 0.081, 0.153, 0.060, 2.8, 0.014, 0.0),
+    (0.031, 0.080, 0.146, 0.054, 2.6, 0.012, 0.0),
+    (0.050, 0.078, 0.143, 0.054, 2.5, 0.008, -0.03),
+    (0.068, 0.066, 0.128, 0.052, 2.3, 0.0, -0.10),
+    (0.085, 0.040, 0.100, 0.050, 2.2, 0.0, -0.22),
+    (0.100, 0.015, 0.078, 0.048, 2.1, 0.0, -0.30),
+    (0.112, 0.000, 0.066, 0.047, 2.0, 0.0, -0.35),
+]
+LOAFER = [
+    (0.000, 0.082, 0.146, 0.053, 3.0, 0.008, 0.0),
+    (0.010, 0.082, 0.150, 0.055, 3.0, 0.008, 0.0),
+    (0.014, 0.082, 0.150, 0.055, 3.0, 0.008, 0.0),
+    (0.016, 0.082, 0.146, 0.052, 2.8, 0.006, 0.0),
+    (0.040, 0.079, 0.142, 0.051, 2.5, 0.004, -0.03),
+    (0.058, 0.062, 0.124, 0.049, 2.3, 0.0, -0.12),
+    (0.072, 0.030, 0.094, 0.047, 2.2, 0.0, -0.22),
+    (0.084, 0.008, 0.074, 0.046, 2.0, 0.0, -0.25),
+]
 
 
 def build_shoe(name, body, kind):
     bm = bmesh.new()
+    prof = SNEAKER if kind == "sneaker" else LOAFER
     for side in (1, -1):
-        vr = loft(bm, shoe_rings(side, kind), 40, cap0=True, cap1=False)
+        shoe_volume(bm, side, prof)
+        if kind == "sneaker":  # padded tongue rising out of the throat
+            loft(bm, [hring(0.11 * side, 0.080, 0.072, 0.028, 0.008, 3), hring(0.11 * side, 0.104, 0.056, 0.029, 0.009, 3),
+                      hring(0.11 * side, 0.124, 0.040, 0.028, 0.008, 3)], 24)
     ob = bm_to_obj(name, bm)
     so = ob.modifiers.new("t", "SOLIDIFY")
-    so.thickness = 0.006
-    so.offset = -1.0
+    so.thickness = 0.005
+    so.offset = 1.0  # ring winding is inward, so +1 grows inside the shoe
     so.use_rim = True
     ss = ob.modifiers.new("s", "SUBSURF")
     ss.levels = 1
@@ -837,7 +863,7 @@ def build_head_cap(body, under):
 
 def build_head_beanie(body, under):
     bm = bmesh.new()
-    dome(bm, (0.0, 1.605, 0.003), 0.1, 0.19, 0.115)
+    dome(bm, (0.0, 1.605, 0.003), 0.1, 0.165, 0.115)
     # folded cuff
     loft(bm, [hring(0, 1.598, 0.003, 0.105, 0.119), hring(0, 1.665, 0.003, 0.105, 0.118)], 40, False, False)
     ob = bm_to_obj("head_beanie", bm)
@@ -903,10 +929,7 @@ def build_glasses(name, shades):
         if shades:
             torus_ring(bm, G(cx, ey, fz), X, Y, 0.028, 0.0035, 36, 8, sx=1.15, sy=0.85)
             # lens: flat disc
-            seg = 32
-            ring = [bm.verts.new(G(cx + math.cos(2 * math.pi * i / seg) * 0.031, ey + math.sin(2 * math.pi * i / seg) * 0.023,
-                                   fz)) for i in range(seg)]
-            bm.faces.new(ring)
+            loft(bm, [(G(cx, ey, fz + 0.001), X, Y, 0.031, 0.023, 2.0), (G(cx, ey, fz - 0.001), X, Y, 0.031, 0.023, 2.0)], 32)
         else:
             torus_ring(bm, G(cx, ey, fz), X, Y, 0.022, 0.0025, 36, 8)
         # temple arm back to the ear
@@ -973,6 +996,18 @@ def build_neck_chain(body, under):
         y = 1.452 - 0.07 * max(0.0, zf) ** 2.2
         z += 0.03 * max(0.0, zf) ** 2  # sit out over the chest
         pts.append(G(x, y, z))
+    # push the centreline (not the tube) outside the neck/chest and any top, so the tube keeps its round section
+    from mathutils.bvhtree import BVHTree
+    dg = bpy.context.evaluated_depsgraph_get()
+    trees = [(BVHTree.FromObject(t, dg), off) for t, off in [(body, 0.008)] + [(u, 0.0075) for u in under] if t]
+    for _ in range(3):
+        for i, p in enumerate(pts):
+            for tree, off in trees:
+                loc, nrm, idx, dist = tree.find_nearest(p, 0.08)
+                if loc is not None and (p - loc).dot(nrm) < off:
+                    p = loc + nrm * off
+            pts[i] = p
+        pts = [(pts[i - 1] + pts[i] * 2 + pts[(i + 1) % n]) / 4 for i in range(n)]
     rseg = 6
     r = 0.0028
     rings = []
@@ -992,7 +1027,6 @@ def build_neck_chain(body, under):
             k = (j + 1) % rseg
             bm.faces.new((r0[j], r1[j], r1[k], r0[k]))
     ob = bm_to_obj("neck_chain", bm)
-    fit_outside(ob, [(body, 0.016)] + [(u, 0.007) for u in under])
     return finish(ob, 3000, 0.0)
 
 
