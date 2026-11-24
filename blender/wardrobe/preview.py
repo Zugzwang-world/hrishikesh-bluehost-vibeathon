@@ -56,6 +56,10 @@ for o in bpy.data.objects:
     if o.type == "MESH":
         o.color = (0.85, 0.65, 0.5, 1) if (o in body_objs) else (random.random()*0.6+0.2, random.random()*0.6+0.2, random.random()*0.6+0.3, 1)
 sc.display.shading.show_cavity = True
+if os.environ.get("MATCOLOR"):
+    sc.display.shading.color_type = "MATERIAL"
+    for m in bpy.data.materials:
+        m.diffuse_color = (0.66, 0.45, 0.23, 1) if m.name.endswith("_sole") else (0.15, 0.15, 0.17, 1)
 sc.render.resolution_x = 700
 sc.render.resolution_y = 1000
 cam_d = bpy.data.cameras.new("c")

@@ -610,8 +610,10 @@ def set_material(ob):
         bsdf.inputs["Base Color"].default_value = (0.5, 0.5, 0.5, 1.0)
         bsdf.inputs["Roughness"].default_value = 0.8
         bsdf.inputs["Metallic"].default_value = 0.0
-    ob.data.materials.clear()
-    ob.data.materials.append(mat)
+    if len(ob.data.materials) >= 1:
+        ob.data.materials[0] = mat
+    else:
+        ob.data.materials.append(mat)
 
 
 # ---------------------------------------------------------------- garments
@@ -921,13 +923,15 @@ def shoe_ring(bm, side, y, zc, L, W, n, seg=48, spring=0.0, tilt=0.0):
     return ring
 
 
-def shoe_volume(bm, side, prof, seg=48):
+def shoe_volume(bm, side, prof, seg=48, sole_rings=0):
     rings = [shoe_ring(bm, side, y, zc, L, W, n, seg=seg, spring=sp, tilt=tl) for (y, zc, L, W, n, sp, tl) in prof]
-    for r0, r1 in zip(rings[:-1], rings[1:]):
+    for k, (r0, r1) in enumerate(zip(rings[:-1], rings[1:])):
         for i in range(seg):
             j = (i + 1) % seg
-            bm.faces.new((r0[i], r0[j], r1[j], r1[i]))
-    bm.faces.new(list(reversed(rings[0])))  # sole closed, collar open
+            f = bm.faces.new((r0[i], r0[j], r1[j], r1[i]))
+            f.material_index = 1 if k < sole_rings else 0
+    f = bm.faces.new(list(reversed(rings[0])))  # sole closed, collar open
+    f.material_index = 1 if sole_rings else 0
 
 
 SNEAKER = [  # y, z-centre, half-length, half-width, exponent, toe spring, tilt
@@ -958,7 +962,7 @@ def build_shoe(name, body, kind):
     bm = bmesh.new()
     prof = SNEAKER if kind == "sneaker" else LOAFER
     for side in (1, -1):
-        shoe_volume(bm, side, prof)
+        shoe_volume(bm, side, prof, sole_rings=3 if kind == "sneaker" else 0)
         if kind == "sneaker":  # padded tongue rising out of the throat
             loft(bm, [hring(0.11 * side, 0.080, 0.072, 0.028, 0.008, 3), hring(0.11 * side, 0.104, 0.056, 0.029, 0.009, 3),
                       hring(0.11 * side, 0.124, 0.040, 0.028, 0.008, 3)], 24)
@@ -967,6 +971,9 @@ def build_shoe(name, body, kind):
                 z = 0.072 - 0.032 * t + 0.010
                 capsule(bm, G(0.11 * side - 0.027, y - 0.002, z - 0.004), G(0.11 * side + 0.027, y - 0.002, z - 0.004), 0.0021, 8)
     ob = bm_to_obj(name, bm)
+    if kind == "sneaker":  # two slots so the modifiers keep the sole's material index
+        for nm in ("mat_shoe_sneaker", "mat_shoe_sneaker_sole"):
+            ob.data.materials.append(bpy.data.materials.get(nm) or bpy.data.materials.new(nm))
     so = ob.modifiers.new("t", "SOLIDIFY")
     so.thickness = 0.005
     so.offset = 1.0  # ring winding is inward, so +1 grows inside the shoe
@@ -991,12 +998,11 @@ def build_shoe_sneaker(body, under):
     if bsdf:
         bsdf.inputs["Base Color"].default_value = (0.9, 0.9, 0.88, 1.0)
         bsdf.inputs["Roughness"].default_value = 0.7
-    ob.data.materials.append(sole)
-    n = 0
-    for poly in ob.data.polygons:
-        if poly.center.z < 0.0295:
-            poly.material_index = 1
-            n += 1
+    if len(ob.data.materials) < 2:
+        ob.data.materials.append(sole)
+    else:
+        ob.data.materials[1] = sole
+    n = sum(1 for poly in ob.data.polygons if poly.material_index == 1)
     print(f"WARDROBE:   shoe_sneaker sole faces {n}")
     return ob
 
