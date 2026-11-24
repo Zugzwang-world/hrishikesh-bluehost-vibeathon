@@ -14,6 +14,7 @@ import { PromptBar } from './ui/PromptBar'
 import { Controls, StageCheckCard } from './ui/Controls'
 import { StoreCard } from './ui/StoreCard'
 import { LookBar } from './ui/LookBar'
+import { Tips } from './ui/Tips'
 import './styles/app.css'
 
 
@@ -147,6 +148,7 @@ export default function App() {
           <LookBar />
         </footer>
       </div>
+      <Tips />
     </div>
   )
 }
