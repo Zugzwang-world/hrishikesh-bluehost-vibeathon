@@ -56,3 +56,10 @@ Brief 10 (photoreal avatar through fal), 24 Nov:
 - 12:30 Freeze moves to 1:30 PM (founder). Lanes B and E stopped: the photoreal cutout makes wardrobe changes invisible in the demo, and fal product photos replace the Eevee renders.
 - 12:31 Product photos and store banners through fal (same cap): each product photo edits a crop of that piece from his look render, so colour and pattern match the looks; restaged as an editorial still life on the store's brand colour. Banners are composed from the store's new product photos; the store wordmark is overlaid as clean type, never generated. Same file names (/products/SKU.webp, /merchants/SLUG-banner.jpg), so Bluehost picks them up.
 - 12:36 fal product photos (31, nano-banana-pro/edit from crops of his look renders) and store banners (5, composed from each store's new photos, woven-label wordmark overlaid as is) are live under the same file names. KK-003 was regenerated once because the first version's side stripe read as a real sportswear brand; the prompt now forbids brand stripes, swooshes and logos. Lane E's Eevee renders remain in git history. fal spend 11.68 USD of the 18 USD stop.
+
+Final run (freeze 1:45 PM), 24 Nov:
+
+- 13:17 DEFAULT_HOST = https://app-b487b.55145.app.bluehost.ai (SHOP-UNI-FY, the submission). Portfolio site: https://app-1593f.55145.app.bluehost.ai.
+- 13:18 Persona video framing: scaled around his feet in tall (≤1:1) and squarish (≤3:2) frames; the first frame paints instantly as the background.
+- 13:21 Guided bubbles in the Experience (1 Explain your vibe, 2 Pick pieces from any store, 3 Lock the look), dismissible and remembered, off in persona/locked/product and with tips=0.
+- 13:33 Real explainer (recorder, Playwright in headed Chrome): 52.0 s, 1280 x 720, muted H.264 veryfast, 4.3 MB, step badges, no burned-in text; checkout split and merchant segments from the final Bluehost version. /brand/explainer-captioned.mp4 adds the six landing-page captions at the same times and wording (4.4 MB). Both copied to the founder's Desktop.
