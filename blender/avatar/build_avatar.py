@@ -206,7 +206,7 @@ def build_body_mb():
     for s in (1, -1):
         mb.ellipsoid((0.10 * s, 1.425, -0.012), (0.095, 0, 0), (0, 0.040, 0), (0, 0, 0.070), nu=32, nv=14)
     # neck
-    mb.tube((0, 1.40, -0.014), (0, 1.60, -0.006), [(0, 0.062), (0.35, 0.059), (1, 0.058)], n=32)
+    mb.tube((0, 1.40, -0.014), (0, 1.60, -0.006), [(0, 0.068), (0.3, 0.063), (0.6, 0.061), (1, 0.060)], n=32)
     # head
     mb.ellipsoid(HEAD_C, (HEAD_R.x, 0, 0), (0, HEAD_R.y, 0), (0, 0, HEAD_R.z), nu=64, nv=40, fn=head_deform)
     for s in (1, -1):
@@ -236,11 +236,11 @@ def build_body_mb():
         hip = Vector((0.096 * s, 0.90, -0.006))
         K = Vector((0.100 * s, 0.49, 0.008))
         A = Vector((0.105 * s, 0.085, -0.008))
-        mb.tube(hip, K, [(0, 0.088), (0.25, 0.083), (0.6, 0.066), (0.9, 0.054), (1, 0.052)])
-        mb.sphere(K, 0.051, 24, 12)
-        mb.tube(K, A, [(0, 0.049), (0.18, 0.053), (0.35, 0.051), (0.7, 0.040), (1, 0.034)])
-        mb.ellipsoid((0.102 * s, 0.37, -0.016), (0.044, 0, 0), (0, 0.09, 0), (0, 0, 0.044), nu=24, nv=12)
-        mb.sphere(A, 0.035, 24, 12)
+        mb.tube(hip, K, [(0, 0.090), (0.25, 0.085), (0.6, 0.070), (0.9, 0.058), (1, 0.056)])
+        mb.sphere(K, 0.055, 24, 12)
+        mb.tube(K, A, [(0, 0.053), (0.18, 0.057), (0.35, 0.055), (0.7, 0.043), (1, 0.036)])
+        mb.ellipsoid((0.102 * s, 0.37, -0.016), (0.050, 0, 0), (0, 0.10, 0), (0, 0, 0.050), nu=24, nv=12)
+        mb.sphere(A, 0.037, 24, 12)
         # feet: heel z -0.06, toe z +0.21, width 0.10, sole clipped at y = 0
         mb.ellipsoid((0.110 * s, 0.040, -0.012), (0.043, 0, 0), (0, 0.050, 0), (0, 0, 0.048), nu=24, nv=12)
         mb.ellipsoid((0.110 * s, 0.033, 0.070), (0.049, 0, 0), (0, 0.043, 0), (0, 0, 0.095), nu=28, nv=12)
@@ -326,9 +326,9 @@ def hair_full_off(u, v, va, vb):
         g = math.exp(-((rel.x - PART_X) / 0.005) ** 2)
         off -= 0.009 * g * smoothstep(0.06, 0.09, rel.y)
     # swept strand clumps: on top they fan back from the front part, on the sides they run back
-    if rel.y > 0.02:
-        ang = math.atan2(rel.x - PART_X, rel.z + 0.14)
-        off -= 0.0032 * (0.5 + 0.5 * math.cos(ang * 30)) ** 2 * smoothstep(0.02, 0.08, rel.y)
+    if rel.y > 0.0:
+        ang = math.atan2(rel.x - PART_X, rel.z + 0.16)
+        off -= 0.0055 * (0.5 + 0.5 * math.cos(ang * 16)) ** 3 * smoothstep(0.0, 0.07, rel.y)
     side = 1.0 - smoothstep(0.02, 0.08, rel.y)
     if side > 0:
         off -= 0.0022 * side * (0.5 + 0.5 * math.cos(rel.y * 260 + rel.z * 40)) ** 2
@@ -338,8 +338,11 @@ def hair_full_off(u, v, va, vb):
 
 
 def hair_capped_off(u, v, va, vb):
+    # where the hairline sits above the cap line (forehead, over the ears) there is no hair: sink it
+    hl = D(lerp_table(HAIRLINE, math.degrees(u)))
+    sink = smoothstep(CAP_V + D(2), CAP_V + D(7), hl)
     t = smoothstep(0.0, D(10), vb - v) * smoothstep(0.0, D(6), v - va)
-    return 0.002 + 0.0045 * t
+    return (0.002 + 0.0045 * t) * sink - 0.0045 * (1 - sink)
 
 
 CAP_V = math.acos((1.62 - HEAD_C.y) / HEAD_R.y)  # polar angle of the cap line
@@ -396,6 +399,7 @@ def bake(ob, mods):
     me = bpy.data.meshes.new_from_object(ev)
     ob.modifiers.clear()
     old = ob.data
+    me.validate()
     ob.data = me
     bpy.data.meshes.remove(old)
 
@@ -573,7 +577,7 @@ def main():
     hair = make_material("hair", HAIR_SRGB, HAIR_ROUGH)
 
     body = build_body_mb().to_object("body_tmp")
-    remesh_smooth_decimate(body, 0.0055, 14, 0.6, BODY_TRIS)
+    remesh_smooth_decimate(body, 0.0055, 20, 0.7, BODY_TRIS)
     split_body(body, skin)
 
     for name, builder, target, voxel in (("hair_full", build_hair_full, HAIR_TRIS, 0.0028),
