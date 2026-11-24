@@ -60,7 +60,8 @@ export const useStore = create<State>((set, get) => ({
     // never leave a required slot empty
     for (const s of REQUIRED) if (!look[s]) { const d = DEFAULT_LOOK.map(k => c.products.find(p => p.sku === k)).find(p => p?.slot === s); if (d) look[s] = d.sku }
     const t = productBySku(c, PARAMS.try)
-    set({ catalog: c, look, shop: t ? t.merchant : (c.merchants[0]?.slug ?? null) })
+    const phone = typeof window !== 'undefined' && window.innerWidth < 768
+    set({ catalog: c, look, shop: t ? t.merchant : phone ? null : (c.merchants[0]?.slug ?? null) })
   },
 
   equip: sku => {

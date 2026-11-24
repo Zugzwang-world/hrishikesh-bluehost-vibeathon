@@ -10,7 +10,7 @@ img { display: block; }
 .topbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--gutter); border-bottom: 1px solid var(--line); background: var(--bg); }
 .topbar__brand { font-family: var(--font-display); font-weight: 800; letter-spacing: var(--tracking-wide); font-size: var(--text-md); }
 .topbar__event { font-size: var(--text-sm); color: var(--ink-dim); }
-.stage-area { position: relative; overflow: hidden; min-height: 0; background: var(--bg); }
+.stage-area { grid-row: 2; grid-column: 1; position: relative; overflow: hidden; min-height: 0; background: var(--bg); }
 .scene { position: absolute; inset: 0; touch-action: none; cursor: grab; }
 .scene:active { cursor: grabbing; }
 .app[data-mode='show'] .scene { cursor: default; }

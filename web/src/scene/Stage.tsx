@@ -23,7 +23,7 @@ function useFxMaterials(mats: FxMats) {
     for (const m of mats.led) m.emissiveIntensity = lerp(0.55, 1.25, k)
     const pulse = 0.85 + 0.15 * Math.sin(clock.elapsedTime * 2.2)
     for (const m of mats.strip) m.emissiveIntensity = lerp(0.6, 3.2 * pulse, k)
-    for (const m of mats.cone) { m.opacity = 0.035 * k; m.visible = k > 0.01 }
+    for (const m of mats.cone) m.opacity = 0.035 * k
     for (const m of mats.mark) m.emissiveIntensity = lerp(0.4, 2.0, k)
   })
 }
