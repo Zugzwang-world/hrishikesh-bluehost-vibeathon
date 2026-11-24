@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { getBag, groupByStore, inr, merchantBy, placeOrder, useCatalog, useLive, type Order } from './data'
+import { getBag, groupByStore, inr, merchantBy, placeOrder, useCatalog, useLive, type Bag, type Order } from './data'
 import { Chip, Link, StoreLogo } from './nav'
 
 function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
@@ -81,9 +81,10 @@ export default function CheckoutPage() {
   const [payment, setPayment] = useState<'upi' | 'cod'>('upi')
   const [placed, setPlaced] = useState<Order | null>(null)
   const [busy, setBusy] = useState(false)
+  const [snap, setSnap] = useState<Bag | null>(null) // keeps the page as it was behind the pop-up
 
   if (!catalog) return <main className="s-page"><p className="s-loading">Loading checkout…</p></main>
-  const bag = getBag()
+  const bag = snap ?? getBag()
   const groups = groupByStore(catalog, bag.skus)
   const sub = groups.reduce((a, g) => a + g.subtotal, 0)
   const ship = speed === 'express' ? 99 : 0
@@ -92,6 +93,7 @@ export default function CheckoutPage() {
   const submit = () => {
     if (!groups.length || busy) return
     setBusy(true)
+    setSnap(bag)
     const o = placeOrder(catalog, bag, {
       customer: { name: name.trim() || 'Guest', email: email.trim(), phone: phone.trim() },
       address: { line1, line2, city, pin }, speed, payment,
