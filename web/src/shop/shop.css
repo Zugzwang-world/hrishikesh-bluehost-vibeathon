@@ -282,6 +282,21 @@ a.s-store__ig:hover { color: var(--c-bone); }
 @media (max-width: 420px) { .a-kpi em { display: none; } .a-seg button { font-size: 12px; } }
 
 .s-top__brand, .s-top__nav a { white-space: nowrap; }
+.s-prog { display: grid; gap: 8px; margin-top: 14px; max-width: 560px; }
+.s-prog__bar { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.s-prog__bar span { display: block; height: 100%; min-width: 6px; border-radius: inherit; background: linear-gradient(90deg, var(--c-cobalt), var(--c-violet), var(--c-gold)); }
+.s-sum { position: sticky; bottom: 14px; z-index: 4; background: rgba(16, 16, 26, 0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+@media (max-width: 680px) {
+  .s-sum { padding: 12px 14px; gap: 10px; bottom: 8px; border-radius: 16px; }
+  .s-sum__total { grid-template-columns: auto 1fr; align-items: baseline; column-gap: 10px; row-gap: 2px; }
+  .s-sum__total .s-label:first-child { display: none; }
+  .s-sum__amt { font-size: 30px; }
+  .s-hide-sm { display: none; }
+  .s-sum__actions { flex-direction: row; flex-wrap: nowrap; }
+  .s-sum__actions .s-btn { flex: 1; width: auto; min-height: 46px; padding: 0 10px; font-size: 14px; }
+}
+.a-look { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 600; color: #2d4bff; text-decoration: none; }
+.a-look:hover { text-decoration: underline; }
 .a-side__nav b { margin-left: 8px; }
 @media (max-width: 520px) {
   .s-top { padding: 10px 12px; }

@@ -48,6 +48,7 @@ function Drawer({ o, slug, onClose, onSet }: { o: Order; slug: string; onClose: 
             </ul>
             <div className="a-line"><span>Subtotal</span><strong>{inr(s.subtotal)}</strong></div>
             {others > 0 ? <p className="a-note">Part of the look “{o.look}”: one checkout across {o.subs.length} stores. You only ship your {s.items.length === 1 ? 'piece' : 'pieces'}.</p> : null}
+            {o.sample ? null : <a className="a-look" href={`/?look=${o.subs.flatMap(x => x.items.map(i => i.sku)).join(',')}`} target="_blank" rel="noreferrer">See the whole look on the Stage ↗</a>}
           </section>
           <section className="a-grid2">
             <div><h3>Customer</h3><p>{o.customer.name}<br /><span className="a-dim">{o.customer.email || 'No email (demo)'}<br />{o.customer.phone || 'No phone (demo)'}</span></p></div>

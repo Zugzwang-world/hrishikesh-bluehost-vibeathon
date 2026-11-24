@@ -88,7 +88,7 @@ export default function BagPage({ add, look }: { add: string | null; look: strin
         <div className="s-sum__total">
           <span className="s-label">Total across stores</span>
           <span className="s-sum__amt">{inr(total)}</span>
-          <span className="s-label">{skus.length} {skus.length === 1 ? 'piece' : 'pieces'} · {groups.length} {groups.length === 1 ? 'store' : 'stores'} · every piece 1 of 1</span>
+          <span className="s-label">{skus.length} {skus.length === 1 ? 'piece' : 'pieces'} · {groups.length} {groups.length === 1 ? 'store' : 'stores'}<span className="s-hide-sm"> · every piece 1 of 1</span></span>
         </div>
         <div className="s-sum__actions">
           <a className="s-btn s-btn--ghost" href={`/?look=${skus.join(',')}`}>Back to the stage</a>
