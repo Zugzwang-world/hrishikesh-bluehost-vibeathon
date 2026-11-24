@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DEFAULT_LOOK, REQUIRED, SLOTS, type Slot } from './config'
+import { DEFAULT_LOOK, REQUIRED, SLOTS, STAGE_READY, type Slot } from './config'
 import type { Catalog, Look, Product, StageCheckResult } from './api/types'
 import { PARAMS } from './lib/params'
 
@@ -7,6 +7,13 @@ export type Mode = 'fit' | 'show'
 export const KEYNOTE = 'keynote'
 export const OCCASION_LABEL = 'On stage · AI Builder Tour Bengaluru'
 export const DEFAULT_TITLE = 'Hrishikesh on stage'
+
+/** Display title: STAGE_READY's title when the look is exactly that set, else the stored title. */
+export function lookTitle(look: Look, title: string): string {
+  const worn = Object.values(look).filter(Boolean).sort().join(',')
+  const ready = [...STAGE_READY.skus].sort().join(',')
+  return worn === ready ? STAGE_READY.title : title
+}
 
 type State = {
   catalog: Catalog | null

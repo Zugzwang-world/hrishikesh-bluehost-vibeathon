@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { bagUrl, inr, lookProducts, postAddLook } from '../lib/bag'
-import { useStore } from '../store'
+import { lookTitle, useStore } from '../store'
 
 /** Look summary and Lock the look (url-contract: HOST + cartPath ?add=SKU,SKU&look=TITLE, target _parent, plus postMessage). */
 export function LookBar() {
   const catalog = useStore(s => s.catalog)
   const look = useStore(s => s.look)
-  const title = useStore(s => s.title)
+  const storedTitle = useStore(s => s.title)
   const stageNotes = useStore(s => s.stageNotes)
+  const title = lookTitle(look, storedTitle)
   const items = lookProducts(look, catalog)
   const skus = items.map(p => p.sku)
   const total = items.reduce((a, p) => a + p.price, 0)

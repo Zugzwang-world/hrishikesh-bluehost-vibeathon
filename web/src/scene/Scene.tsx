@@ -1,13 +1,18 @@
 import { Suspense, useRef, useState, type PointerEvent } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { ContactShadows, PerformanceMonitor } from '@react-three/drei'
+import { ContactShadows, PerformanceMonitor, useGLTF } from '@react-three/drei'
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing'
 import meshes from '../contract/meshes.json'
 import { useStore } from '../store'
 import { ANCHORS, turntable } from './anchors'
-import { useAssetExists } from './assets'
+import { assetExists, DRACO_PATH, useAssetExists } from './assets'
 import { AssetBoundary, Avatar } from './Avatar'
 import { CameraRig, GlbStage, Lights, PrimitiveStage } from './Stage'
+
+// Start the GLB downloads as soon as each file is known to exist (in parallel, before the scene mounts).
+for (const url of [meshes.files.avatar, meshes.files.wardrobe, meshes.files.stage]) {
+  assetExists(url).then(ok => { if (ok) { try { useGLTF.preload(url, DRACO_PATH) } catch { /* boundary falls back */ } } })
+}
 
 export const canvasRef: { current: HTMLCanvasElement | null } = { current: null }
 

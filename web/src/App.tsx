@@ -36,7 +36,7 @@ function Loader({ ready, minimal }: { ready: boolean; minimal?: boolean }) {
   const pct = ready ? Math.max(8, Math.round(progress || 100)) : 4
   return (
     <div className={'loader' + (busy ? '' : ' is-done') + (minimal ? ' loader--minimal' : '')} role="status" aria-live="polite">
-      {!minimal && <div className="loader__mark">{BRAND}</div>}
+      <div className="loader__mark">{BRAND}</div>
       <div className="loader__bar"><span style={{ width: `${pct}%` }} /></div>
       {!minimal && <div className="loader__label">Setting the stage for {PERSONA.name}…</div>}
     </div>
@@ -78,6 +78,7 @@ export default function App() {
     return (
       <div className="app app--bare app--product">
         {three ? <Suspense fallback={null}><SceneBoundary fallback={null} onFail={() => setFailed(true)}><ProductView /></SceneBoundary></Suspense> : null}
+        {three && <Loader ready={!!catalog && checked} minimal />}
       </div>
     )
   }
