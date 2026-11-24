@@ -19,3 +19,5 @@ Coordinator, 24 Nov:
 - 11:10 None of the newest Downloads images are of the founder (a whiteboard and phone screenshots); Lane A starts with the designer-toy figure and personalises when photos arrive.
 - 11:10 web stack as installed by npm today: react 19.3, three 0.187, @react-three/fiber 9.8, drei 10.7, @react-three/postprocessing 3.2, zustand 5.1, motion 14.14, vite 8.3, typescript 7.0. Unverified by the scout.
 - 11:16 Commit signing is off in this repo's local git config: the SSH signing key isn't in the agent, so signed commits hang. The Innodata repo's commits are unsigned too.
+- 11:22 Vercel project hrishikesh-stage (team hrizzup), root directory web, framework vite, ANTHROPIC_API_KEY and STYLIST_MODEL set. Live at https://hrishikesh-stage.vercel.app. `vercel git connect` failed (the Vercel GitHub app probably can't see the new repo), so a Coordinator watcher deploys origin/main to production within a minute of every push until the founder adds the repo to the Vercel GitHub app.
+- 11:22 Commits use the GitHub noreply email (repo-local config); the private email blocks pushes.

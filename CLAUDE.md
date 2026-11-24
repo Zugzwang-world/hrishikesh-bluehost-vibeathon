@@ -21,10 +21,10 @@ contract/meshes.json (slots, mesh node names, hides/shows, stage hooks), contrac
 | Lane | Folders |
 | --- | --- |
 | A Avatar | blender/avatar, web/public/models/avatar.glb, web/public/brand/persona.png |
-| B Wardrobe | blender/wardrobe, web/public/models/wardrobe.glb, web/public/textures |
+| B Wardrobe | blender/wardrobe, web/public/models/wardrobe.glb |
 | C Stage | blender/stage, web/public/models/stage.glb, web/public/brand/hero.jpg |
 | D Web | web/src, web/api, web/index.html, web/package.json, web/vite.config.ts, web/vercel.json |
-| E Catalog and renders | web/public/catalog, web/public/products, web/public/merchants, web/public/brand/logo.png, blender/render |
+| E Catalog and renders | web/public/catalog, web/public/products, web/public/merchants, web/public/textures, web/public/brand/logo.png, blender/render |
 | Coordinator | contract/, docs/vibeathon/, CLAUDE.md, .claude/ |
 
 ## Shipping
