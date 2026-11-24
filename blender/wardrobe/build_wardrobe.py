@@ -358,7 +358,7 @@ def lap_smooth(ob, factor, iters):
     bm.free()
 
 
-def fit_outside(ob, targets, offset=None, maxdist=0.06, ymin=None, passes=2):
+def fit_outside(ob, targets, offset=None, maxdist=0.06, ymin=None, passes=2, skip=None):
     """Push garment verts outside each target by its offset. Only targets within maxdist count,
     so far-away rims/edges never drag geometry (no fins)."""
     from mathutils.bvhtree import BVHTree
@@ -388,6 +388,8 @@ def fit_outside(ob, targets, offset=None, maxdist=0.06, ymin=None, passes=2):
         for v in me.vertices:
             co = v.co.copy()
             if ymin is not None and co.z < ymin:
+                continue
+            if skip is not None and v.index >= skip:
                 continue
             for tree, off, bfaces in trees:
                 loc, nrm, idx, dist = tree.find_nearest(co, maxdist)
@@ -1040,7 +1042,7 @@ def head_proxy_obj(hv, pad=0.0):
     return ob
 
 
-def dome(bm, c, rx, ry, rz, y_cut_frac=0.0, seg=40, rings=14, p=2.0):
+def dome(bm, c, rx, ry, rz, y_cut_frac=0.0, seg=34, rings=11, p=2.0):
     """Upper part of a super-ellipsoid (glTF radii), open at the bottom; p > 2 gives a fuller, rounder crown."""
     cx, cy, cz = c
     vr = []
@@ -1050,7 +1052,7 @@ def dome(bm, c, rx, ry, rz, y_cut_frac=0.0, seg=40, rings=14, p=2.0):
         r = math.cos(phi) ** (2.0 / p)
         vr.append((cy + ry * (y_cut_frac + (1 - y_cut_frac) * y), r))
     rings_l = [hring(cx, yy, cz, max(rx * r, 1e-4), max(rz * r, 1e-4), 2.0) for (yy, r) in vr]
-    return loft(bm, rings_l, seg, cap0=False, cap1=True)
+    return loft(bm, rings_l, seg, cap0=True, cap1=False)  # rings run pole -> equator: close the pole, leave the band open
 
 
 def tilt(ob, deg, pivot_y=1.70):
@@ -1084,7 +1086,7 @@ def relax_boundary(ob, iters=10):
     bm.free()
 
 
-def hat_finish(ob, body, hv, th, extra=None):
+def hat_finish(ob, body, hv, th, extra=None, skip=None):
     """Tilt, push the single-surface hat outside head + hair, smooth its edges, then give it thickness.
     No decimation: decimating after subdivision is what made the band edge jagged."""
     tilt(ob, HAT_TILT[ob.name])
@@ -1092,13 +1094,10 @@ def hat_finish(ob, body, hv, th, extra=None):
     targets = [(body, 0.006), (prox, 0.006)]
     if HEAD["obj"] is not None:
         targets.append((HEAD["obj"], 0.006))
-    fit_outside(ob, targets, maxdist=0.05)
+    fit_outside(ob, targets, maxdist=0.05, skip=skip)
     delete(prox)
     relax_boundary(ob)
-    sm = ob.modifiers.new("even", "SMOOTH")
-    sm.factor = 0.6
-    sm.iterations = 4
-    apply_mods(ob)
+    lap_smooth(ob, 0.6, 4)
     relax_boundary(ob, 6)
     solidify_subsurf(ob, th)
     if extra:
@@ -1124,6 +1123,7 @@ def build_head_cap(body, under):
     RX, RZ = rx + 0.008, rz + 0.008
     bm = bmesh.new()
     dome(bm, (cx, base, cz), RX, top - base, RZ, p=2.7)
+    n_crown = len(bm.verts)  # brim verts come after: they ride on the crown and are not pushed
     # brim: curved visor at the front
     seg = 24
     rows = []
@@ -1132,10 +1132,10 @@ def build_head_cap(body, under):
         row = []
         for i in range(seg + 1):
             a = math.radians(-70 + 140 * i / seg)
-            rr = RX * 0.985 + r * 0.078 * math.cos(a * 0.9) ** 0.6
+            rr = RX * 0.985 + r * 0.08 * math.cos(a * 0.9) ** 0.6
             x = math.sin(a) * rr
             z = cz + math.cos(a) * (RZ / RX) * rr
-            y = base + 0.012 - 0.012 * r - 0.004 * r * r
+            y = base + 0.004 - 0.012 * r - 0.004 * r * r
             row.append(bm.verts.new(G(x, y, z)))
         rows.append(row)
     for r0, r1 in zip(rows[:-1], rows[1:]):
@@ -1151,7 +1151,7 @@ def build_head_cap(body, under):
         sphere(bm, topv + Vector((0, 0, 0.002)), 0.011, 0.006, 0.011, 12, 6)
         bm.to_mesh(o.data)
         bm.free()
-    return hat_finish(ob, body, hv, 0.006, button)
+    return hat_finish(ob, body, hv, 0.006, button, skip=n_crown)
 
 
 def build_head_beanie(body, under):
@@ -1176,7 +1176,7 @@ def build_head_bucket(body, under):
     bm = bmesh.new()
     rings = [hring(cx, base - 0.032, cz, RX + 0.07, RZ + 0.066), hring(cx, base - 0.016, cz, RX + 0.048, RZ + 0.046),
              hring(cx, base - 0.002, cz, RX + 0.006, RZ + 0.006)]
-    k, p_ = 12, 3.0
+    k, p_ = 10, 3.0
     for i in range(k + 1):  # crown, one continuous surface with the brim
         phi = (math.pi / 2) * i / k
         yy = base + (top - base) * math.sin(phi) ** (2.0 / p_)
