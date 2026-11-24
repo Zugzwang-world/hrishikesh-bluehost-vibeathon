@@ -133,6 +133,12 @@ def garment_objects(meshname):
 
 # original material slot names (the sneaker has a separate sole slot); read before any product overwrites them
 ORIG_SLOTS = {o.name: [sl.material.name if sl.material else "" for sl in o.material_slots] for o in all_objs if o.type == "MESH"}
+ORIG_IDX = {}
+for _o in all_objs:
+    if _o.type == "MESH":
+        _a = [0] * len(_o.data.polygons)
+        _o.data.polygons.foreach_get("material_index", _a)
+        ORIG_IDX[_o.name] = _a  # materials.clear() resets these, so they are restored below
 
 for o in all_objs:
     if o.type == "MESH":
@@ -511,12 +517,16 @@ for i, p in enumerate(products):
         db.inputs["Roughness"].default_value = 0.7
     for o in objs:
         names = ORIG_SLOTS.get(o.name, [""])
+        if len(names) > 1:
+            print(f"[render_products] {p['sku']} slots {names} sole={'gum ' + p['material']['soleColor'] if sole_mat else 'default'}")
         o.data.materials.clear()
         for nm in names:
             if "sole" in nm.lower():
                 o.data.materials.append(sole_mat or default_sole)  # gum sole when the product asks for it (web does the same)
             else:
                 o.data.materials.append(mat)
+        if o.name in ORIG_IDX:
+            o.data.polygons.foreach_set("material_index", ORIG_IDX[o.name])
         for poly in o.data.polygons:
             poly.use_smooth = True
     frame(objs, p)
