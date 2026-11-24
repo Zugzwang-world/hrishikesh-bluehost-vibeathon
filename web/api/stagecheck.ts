@@ -139,6 +139,19 @@ function preflight(req: Req, res: ServerResponse): boolean {
   return false
 }
 
+// Small in-memory answer cache (per warm instance) so a repeated demo request is instant.
+const memo = new Map<string, { at: number; body: Record<string, unknown> }>()
+function memoGet(key: string): Record<string, unknown> | null {
+  const e = memo.get(key)
+  if (e && Date.now() - e.at < 15 * 60_000) return e.body
+  if (e) memo.delete(key)
+  return null
+}
+function memoSet(key: string, body: Record<string, unknown>) {
+  if (memo.size >= 200) memo.delete(memo.keys().next().value as string)
+  memo.set(key, { at: Date.now(), body })
+}
+
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
 let client: Anthropic | null = null
@@ -300,6 +313,10 @@ export default async function handler(req: Req, res: ServerResponse) {
     : 'none (swap must be null)'
   const user = `Metrics: ${JSON.stringify(metrics)}\n\nOutfit:\n${outfit}\n\nSwap candidates (sku|slot|name|colour|store|contrast vs LED wall now -> after):\n${options}`
 
+  const key = JSON.stringify([look, metrics])
+  const hit = memoGet(key)
+  if (hit) return send(res, 200, { ...hit, cached: true, ms: Date.now() - t0 })
+
   let out: { data: unknown; model: string }
   try {
     out = await callWithRetry(SYSTEM, user, stageSchema(products), 600)
@@ -320,7 +337,7 @@ export default async function handler(req: Req, res: ServerResponse) {
     const c = candidates[0]
     swap = { slot: c.p.slot, sku: c.p.sku, why: `${c.p.name} in ${c.p.colorName} from ${c.p.merchant} lifts contrast against the LED wall from ${c.from}:1 to ${c.to}:1.` }
   }
-  return send(res, 200, {
+  const result = {
     score: Math.round(Math.max(0, Math.min(100, score))),
     verdict: d.verdict.trim().slice(0, 160),
     notes,
@@ -328,6 +345,7 @@ export default async function handler(req: Req, res: ServerResponse) {
     source: 'ai',
     model: out.model,
     catalog: catalogSource,
-    ms: Date.now() - t0,
-  })
+  }
+  memoSet(key, result)
+  return send(res, 200, { ...result, ms: Date.now() - t0 })
 }

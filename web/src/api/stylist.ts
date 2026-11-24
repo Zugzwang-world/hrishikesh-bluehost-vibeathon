@@ -239,7 +239,7 @@ export function keywordStylist(input: StylistInput, catalog: Catalog): StylistRe
     title: title || (notes.length ? 'Your look, tuned' : 'Your look'),
     look: final,
     notes,
-    stageNotes: 'Picked by keyword match while the AI stylist is offline. Run the stage check to see how it reads on the LED wall.',
+    stageNotes: 'Quick pick from your words. Run the stage check to see how it reads against the LED wall.',
     source: 'keywords',
   }
 }

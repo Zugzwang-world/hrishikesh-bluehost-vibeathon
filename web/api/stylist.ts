@@ -139,6 +139,19 @@ function preflight(req: Req, res: ServerResponse): boolean {
   return false
 }
 
+// Small in-memory answer cache (per warm instance) so a repeated demo request is instant.
+const memo = new Map<string, { at: number; body: Record<string, unknown> }>()
+function memoGet(key: string): Record<string, unknown> | null {
+  const e = memo.get(key)
+  if (e && Date.now() - e.at < 15 * 60_000) return e.body
+  if (e) memo.delete(key)
+  return null
+}
+function memoSet(key: string, body: Record<string, unknown>) {
+  if (memo.size >= 200) memo.delete(memo.keys().next().value as string)
+  memo.set(key, { at: Date.now(), body })
+}
+
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
 
 let client: Anthropic | null = null
@@ -270,6 +283,10 @@ export default async function handler(req: Req, res: ServerResponse) {
   }).join('\n')
   const user = `Occasion: ${event || 'On stage, Bluehost Bangalore'}\nCurrent look:\n${currentLines}\n\nRequest: ${prompt || 'Style me for the occasion.'}`
 
+  const key = JSON.stringify([prompt.toLowerCase(), event, current])
+  const hit = memoGet(key)
+  if (hit) return send(res, 200, { ...hit, cached: true, ms: Date.now() - t0 })
+
   let out: { data: unknown; model: string }
   try {
     out = await callWithRetry(systemPrompt(products), user, stylistSchema(products), 900)
@@ -293,7 +310,7 @@ export default async function handler(req: Req, res: ServerResponse) {
     .filter((n) => worn.has(n.sku))
     .slice(0, 6)
     .map((n) => ({ sku: n.sku, why: n.why.trim().slice(0, 240) }))
-  return send(res, 200, {
+  const result = {
     title: typeof data.title === 'string' && data.title.trim() ? data.title.trim().slice(0, 80) : 'Your look',
     look,
     notes,
@@ -301,6 +318,7 @@ export default async function handler(req: Req, res: ServerResponse) {
     source: 'ai',
     model: out.model,
     catalog: catalogSource,
-    ms: Date.now() - t0,
-  })
+  }
+  memoSet(key, result)
+  return send(res, 200, { ...result, ms: Date.now() - t0 })
 }
