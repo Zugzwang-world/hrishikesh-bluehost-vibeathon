@@ -256,8 +256,12 @@ def dress_avatar():
                 ob.hide_render = True
         return True
     hide = set(contract.get("defaultHidden", []))
+    present = {o.name.split(".")[0] for o in bpy.data.objects}
     for g in WORN:
-        hide.update(meshes.get(g, {}).get("hides", []))
+        if g in present:   # only hide body regions for garments that actually exist
+            hide.update(meshes.get(g, {}).get("hides", []))
+        else:
+            print("HERO: missing garment", g)
     garments = set(meshes.keys())
     for ob in bpy.data.objects:
         base = ob.name.split(".")[0]
@@ -362,6 +366,12 @@ def showtime_lights(has_avatar):
     spot("hero_side_R", W(5.2, 3.5, 1.0), W(0, 1.0, 0.0), (0.85, 0.25, 0.9), 900, 25, blend=0.6)
     # soft front key so the face reads (from the front-of-house position)
     area("hero_key", W(-2.5, 4.5, 9.0), chest, (1.0, 0.93, 0.85), 900 if has_avatar else 200, 2.5)
+    if has_avatar:
+        # front-of-house follow spot on the presenter, slightly off axis
+        spot("hero_follow", W(1.8, 6.5, 15.0), mark + Vector((0, 0, 1.15)), (1.0, 0.95, 0.88),
+             26000, 6.5, blend=0.6, radius=0.3)
+        # cool rim from upstage high
+        spot("hero_rim", W(0.0, 6.5, -2.6), mark + Vector((0, 0, 1.4)), (0.55, 0.7, 1.0), 2200, 14, blend=0.5)
     # faint house spill on the audience
     area("hero_house", W(0, 7.0, 9.0), W(0, -0.6, 8.0), (0.3, 0.4, 0.9), 120, 10.0)
 
@@ -375,9 +385,9 @@ def camera():
         tgt = find(CAM + "_target").matrix_world.translation.copy()
         cam_data.lens = 30
     else:
-        pos = W(0.0, 1.0, 7.0)
-        tgt = W(0.0, 1.95, -2.0)
-        cam_data.lens = 32
+        pos = W(0.0, 0.95, 6.2)
+        tgt = W(0.0, 1.8, -2.0)
+        cam_data.lens = 33
     cam.location = pos
     cam.rotation_euler = (tgt - pos).normalized().to_track_quat("-Z", "Y").to_euler()
     cam_data.clip_end = 200
