@@ -36,7 +36,7 @@ export function PromptBar() {
         onClick={() => set({ occasion: occasion ? null : KEYNOTE })}>
         {OCCASION_LABEL}
       </button>
-      <input value={text} onChange={e => setText(e.target.value)} placeholder="Describe a look… “smart casual keynote, no tie”" aria-label="Describe a look" />
+      <input value={text} onChange={e => setText(e.target.value)} placeholder="Explain your vibe" aria-label="Explain your vibe" />
       <button className="btn btn--accent" type="submit" disabled={thinking}>{thinking ? 'Styling…' : 'Style me'}</button>
     </form>
   )

@@ -1,5 +1,7 @@
-// Where "Add look to bag" goes when the URL has no host param. Set once the Bluehost app URL exists.
+// Where "Lock the look" goes when the URL has no host param. Set once the Bluehost app URL exists.
 export const DEFAULT_HOST: string | null = null
+// Cart path on the host (a cartPath URL param overrides it).
+export const CART_PATH = '/cart'
 
 export const SLOTS = ['top', 'outerwear', 'bottom', 'footwear', 'headwear', 'eyewear', 'watch', 'neckwear'] as const
 export type Slot = (typeof SLOTS)[number]
@@ -11,3 +13,4 @@ export const DEFAULT_LOOK = ['KT-002', 'KT-006', 'SW-001', 'KK-001', 'LL-006', '
 // Hero look for the demo prompt.
 export const STAGE_READY = { title: 'Stage Ready', skus: ['KT-001', 'KT-006', 'SW-001', 'KK-001', 'LL-001', 'LL-006', 'SH-001'] }
 export const PERSONA = { name: 'Hrishikesh Hundekari', event: 'On stage · Small Business AI Builder Tour · Bengaluru' }
+export const BRAND = 'SHOP-UNI-FY'

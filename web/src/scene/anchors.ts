@@ -22,9 +22,10 @@ export const ANCHORS = {
 export type AnchorName = keyof typeof ANCHORS
 
 // Stage look constants (art direction may retune).
-export const LED_WALL_COLOR = '#1b3fd6'
-export const TALK_TITLE = 'Shipping with AI · Bluehost Bangalore'
-export const SPEAKER = 'HRISHIKESH'
+export const LED_WALL_COLOR = '#2D4BFF' // real stage: cobalt #2D4BFF to violet #7A5CFF wash
+export const LED_WALL_COLOR_2 = '#7A5CFF'
+export const TALK_TITLE = 'SHOP-UNI-FY · Small Business AI Builder Tour · Bengaluru'
+export const SPEAKER = 'HRISHIKESH HUNDEKARI'
 
 // Live avatar root position (written by Avatar each frame, read by the IMAG camera).
 export const live = { avatar: new Vector3(0, 0, 1.6) }

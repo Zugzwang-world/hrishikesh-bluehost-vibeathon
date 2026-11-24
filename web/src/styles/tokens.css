@@ -1,17 +1,27 @@
 /* Placeholder design tokens. Part 3 art direction replaces these values only. */
 :root {
-  --bg: #0e0e14;
-  --surface: #181824;
-  --surface-2: #232333;
-  --ink: #f4f2ee;
-  --ink-dim: #a6a3b5;
-  --accent: #f2c14e;
-  --accent-ink: #14110a;
+  /* SHOP-UNI-FY brand */
+  --c-ink: #0B0B12;
+  --c-bone: #F3EEE6;
+  --c-cobalt: #2D4BFF;
+  --c-violet: #7A5CFF;
+  --c-signal: #FF3D2E;
+  --c-gold: #D4AF37;
+
+  --bg: var(--c-ink);
+  --surface: #14141f;
+  --surface-2: #1e1e2c;
+  --ink: var(--c-bone);
+  --ink-dim: #a9a5b8;
+  --accent: var(--c-cobalt);
+  --accent-ink: #ffffff;
   --radius: 14px;
-  --font: 'Avenir Next', system-ui, -apple-system, sans-serif;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
 
   /* extended (Lane D1) */
-  --font-display: var(--font);
+  --font-display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'Space Mono', ui-monospace, Menlo, monospace;
   --radius-sm: 10px;
   --radius-pill: 999px;
   --line: rgba(255, 255, 255, 0.09);
@@ -20,14 +30,16 @@
   --glass-strong: rgba(14, 14, 22, 0.88);
   --blur: 14px;
   --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
-  --shadow-glow: 0 0 0 1px rgba(242, 193, 78, 0.5), 0 8px 30px rgba(242, 193, 78, 0.25);
-  --primary: var(--accent);
-  --primary-ink: var(--accent-ink);
+  --shadow-glow: 0 0 0 1px rgba(255, 61, 46, 0.5), 0 8px 30px rgba(255, 61, 46, 0.3);
+  --primary: var(--c-signal);
+  --primary-ink: #ffffff;
+  --tag: var(--c-gold);
   --stage-blue: #3d7bff;
   --ok: #57d68d;
   --gap: 12px;
   --gutter: 16px;
   --panel-w: 360px;
+  --card-col: 300px;
   --topbar-h: 52px;
   --badge: 58px;
   --card-w: 112px;
@@ -44,3 +56,6 @@
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); }
 button { font: inherit; color: inherit; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
+}

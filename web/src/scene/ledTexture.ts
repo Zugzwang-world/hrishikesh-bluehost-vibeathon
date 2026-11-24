@@ -1,5 +1,5 @@
 import { CanvasTexture, SRGBColorSpace } from 'three'
-import { LED_WALL_COLOR, SPEAKER, TALK_TITLE } from './anchors'
+import { LED_WALL_COLOR, LED_WALL_COLOR_2, SPEAKER, TALK_TITLE } from './anchors'
 
 let tex: CanvasTexture | null = null
 let texGltf: CanvasTexture | null = null
@@ -13,44 +13,56 @@ export function ledTextureGltf(): CanvasTexture {
   return texGltf
 }
 
-/** 16:9 canvas for the LED wall: speaker name and talk title. */
-export function ledTexture(): CanvasTexture {
-  if (tex) return tex
-  const W = 1920, H = 1080
-  const c = document.createElement('canvas')
-  c.width = W; c.height = H
+function draw(c: HTMLCanvasElement) {
+  const W = c.width, H = c.height
   const g = c.getContext('2d')!
-  const bg = g.createLinearGradient(0, 0, W, H)
-  bg.addColorStop(0, '#0a1650')
-  bg.addColorStop(0.55, LED_WALL_COLOR)
-  bg.addColorStop(1, '#0b1a5e')
+  const bg = g.createLinearGradient(0, 0, W, 0)
+  bg.addColorStop(0, LED_WALL_COLOR)
+  bg.addColorStop(1, LED_WALL_COLOR_2)
   g.fillStyle = bg
   g.fillRect(0, 0, W, H)
-  // soft light blooms
-  const rg = g.createRadialGradient(W * 0.72, H * 0.3, 10, W * 0.72, H * 0.3, W * 0.5)
-  rg.addColorStop(0, 'rgba(120,170,255,0.45)'); rg.addColorStop(1, 'rgba(120,170,255,0)')
-  g.fillStyle = rg; g.fillRect(0, 0, W, H)
-  // grid lines
-  g.strokeStyle = 'rgba(255,255,255,0.06)'; g.lineWidth = 2
-  for (let x = 0; x < W; x += 80) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke() }
-  for (let y = 0; y < H; y += 80) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke() }
-  const font = `system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif`
+  const vg = g.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, W * 0.7)
+  vg.addColorStop(0, 'rgba(255,255,255,0.10)'); vg.addColorStop(1, 'rgba(0,0,30,0.35)')
+  g.fillStyle = vg; g.fillRect(0, 0, W, H)
+  // outlined-square motif
+  g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 3
+  const step = 128
+  for (let x = step / 2; x < W; x += step) for (let y = step / 2; y < H; y += step) {
+    const s = ((x * 7 + y * 13) % 5) < 2 ? 56 : 30
+    g.strokeRect(x - s / 2, y - s / 2, s, s)
+  }
+  const font = `'Anton', 'Impact', 'Arial Narrow', system-ui, sans-serif`
   g.textAlign = 'center'; g.textBaseline = 'middle'
-  g.fillStyle = 'rgba(255,255,255,0.7)'
-  g.font = `600 44px ${font}`
-  g.fillText('BLUEHOST  ·  BANGALORE', W / 2, H * 0.28)
   g.fillStyle = '#ffffff'
-  g.shadowColor = 'rgba(160,200,255,0.9)'; g.shadowBlur = 40
-  let size = 250
-  g.font = `900 ${size}px ${font}`
-  while (g.measureText(SPEAKER).width > W * 0.86) { size -= 10; g.font = `900 ${size}px ${font}` }
-  g.fillText(SPEAKER, W / 2, H * 0.5)
+  g.shadowColor = 'rgba(200,210,255,0.9)'; g.shadowBlur = 36
+  let size = 230
+  g.font = `400 ${size}px ${font}`
+  while (g.measureText(SPEAKER).width > W * 0.88 && size > 40) { size -= 8; g.font = `400 ${size}px ${font}` }
+  g.fillText(SPEAKER, W / 2, H * 0.46)
   g.shadowBlur = 0
-  g.font = `500 64px ${font}`
-  g.fillStyle = '#dfe7ff'
-  g.fillText(TALK_TITLE, W / 2, H * 0.7)
+  let s2 = 58
+  g.font = `600 ${s2}px 'Inter', system-ui, sans-serif`
+  while (g.measureText(TALK_TITLE).width > W * 0.86 && s2 > 20) { s2 -= 2; g.font = `600 ${s2}px 'Inter', system-ui, sans-serif` }
+  g.fillStyle = 'rgba(243,238,230,0.92)'
+  g.fillText(TALK_TITLE, W / 2, H * 0.66)
+}
+
+/** Wide canvas for the LED wall: cobalt-to-violet wash, outlined squares, speaker name and talk line. Text only. */
+export function ledTexture(): CanvasTexture {
+  if (tex) return tex
+  const c = document.createElement('canvas')
+  c.width = 2048; c.height = 1024
+  draw(c)
   tex = new CanvasTexture(c)
   tex.colorSpace = SRGBColorSpace
   tex.anisotropy = 8
+  // redraw once web fonts (Anton, Inter) are ready
+  try {
+    document.fonts?.load(`400 64px 'Anton'`).then(() => document.fonts.ready).then(() => {
+      draw(c)
+      if (tex) tex.needsUpdate = true
+      if (texGltf) { texGltf.image = c; texGltf.needsUpdate = true }
+    }).catch(() => {})
+  } catch { /* ignore */ }
   return tex
 }

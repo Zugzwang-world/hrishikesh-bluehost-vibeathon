@@ -5,7 +5,7 @@ import { PARAMS } from './lib/params'
 
 export type Mode = 'fit' | 'show'
 export const KEYNOTE = 'keynote'
-export const OCCASION_LABEL = 'On stage · Bluehost Bangalore'
+export const OCCASION_LABEL = 'On stage · AI Builder Tour Bengaluru'
 export const DEFAULT_TITLE = 'Hrishikesh on stage'
 
 type State = {
@@ -28,6 +28,7 @@ type State = {
   setShop: (slug: string | null) => void
   applyLook: (look: Partial<Record<Slot, string | null>>, stagger?: number) => void
   surprise: () => void
+  preset: (title: string, skus: string[]) => void
   setMode: (m: Mode) => void
   set: (p: Partial<State>) => void
 }
@@ -57,11 +58,13 @@ export const useStore = create<State>((set, get) => ({
     const look: Look = {}
     const skus = [...(PARAMS.look ?? DEFAULT_LOOK), ...(PARAMS.try ? [PARAMS.try] : [])]
     for (const s of skus) { const p = c.products.find(x => x.sku === s); if (p) look[p.slot] = p.sku }
-    // never leave a required slot empty
-    for (const s of REQUIRED) if (!look[s]) { const d = DEFAULT_LOOK.map(k => c.products.find(p => p.sku === k)).find(p => p?.slot === s); if (d) look[s] = d.sku }
+    // never leave a required slot empty (default look first, then the first piece for that slot)
+    for (const s of REQUIRED) if (!look[s]) {
+      const d = DEFAULT_LOOK.map(k => c.products.find(p => p.sku === k)).find(p => p?.slot === s) ?? c.products.find(p => p.slot === s)
+      if (d) look[s] = d.sku
+    }
     const t = productBySku(c, PARAMS.try)
-    const phone = typeof window !== 'undefined' && window.innerWidth < 768
-    set({ catalog: c, look, shop: t ? t.merchant : phone ? null : (c.merchants[0]?.slug ?? null) })
+    set({ catalog: c, look, shop: t ? t.merchant : null })
   },
 
   equip: sku => {
@@ -103,6 +106,16 @@ export const useStore = create<State>((set, get) => ({
     for (const s of SLOTS) look[s] = REQUIRED.includes(s) || Math.random() < (s === 'outerwear' ? 0.6 : 0.4) ? pick(s) : null
     set({ notes: {}, title: DEFAULT_TITLE })
     get().applyLook(look, 140)
+  },
+
+  preset: (title, skus) => {
+    const c = get().catalog
+    if (!c) return
+    const look: Partial<Record<Slot, string | null>> = {}
+    for (const s of SLOTS) if (!REQUIRED.includes(s)) look[s] = null
+    for (const k of skus) { const p = productBySku(c, k); if (p) look[p.slot] = p.sku }
+    set({ notes: {}, title, stageNotes: '' })
+    get().applyLook(look, 220)
   },
 
   setMode: m => set({ mode: m, showStart: performance.now(), checkVisible: false, ...(m === 'fit' ? {} : { check: null }) }),

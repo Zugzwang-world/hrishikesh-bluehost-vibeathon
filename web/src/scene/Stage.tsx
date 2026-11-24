@@ -7,6 +7,7 @@ import {
 } from 'three'
 import meshes from '../contract/meshes.json'
 import { useStore } from '../store'
+import { PARAMS } from '../lib/params'
 import { ANCHORS, clamp01, easeInOutCubic, live, type AnchorName } from './anchors'
 import { DRACO_PATH } from './assets'
 import { ledTexture, ledTextureGltf } from './ledTexture'
@@ -175,7 +176,7 @@ export function Lights() {
     if (key.current) key.current.target = keyTarget
   }, [targets, keyTarget])
   useFrame(({ clock }, dt) => {
-    const want = useStore.getState().mode === 'show' ? 1 : 0
+    const want = PARAMS.mode === 'persona' || useStore.getState().mode === 'show' ? 1 : 0
     stageFx.mix += (want - stageFx.mix) * Math.min(1, dt * 1.6)
     const k = easeInOutCubic(clamp01(stageFx.mix))
     if (hemi.current) hemi.current.intensity = lerp(1.15, 0.06, k)
@@ -222,6 +223,17 @@ export function CameraRig() {
   const size = useThree(s => s.size)
   const st = useMemo(() => ({ shot: '' as Shot | '', t0: 0, fromPos: new Vector3(), fromTgt: new Vector3(), tgt: new Vector3().copy(ANCHORS.cam_fit_target), pos: new Vector3(), aim: new Vector3(), right: new Vector3() }), [])
   useFrame(({ clock }) => {
+    if (PARAMS.mode === 'persona') {
+      // portfolio: slow orbit around the speaker on the centre mark
+      const t = clock.elapsedTime
+      const a = Math.sin(t * 0.11) * 0.75
+      const aspect = size.width / Math.max(1, size.height)
+      const r = aspect < 1 ? 9 / Math.max(0.55, aspect) : 7.2
+      st.aim.set(ANCHORS.mark_center.x, ANCHORS.mark_center.y + 1.25, ANCHORS.mark_center.z)
+      camera.position.set(st.aim.x + Math.sin(a) * r, st.aim.y + 0.55 + Math.sin(t * 0.07) * 0.25, st.aim.z + Math.cos(a) * r)
+      camera.lookAt(st.aim)
+      return
+    }
     const { mode, showStart } = useStore.getState()
     let shot: Shot = 'cam_fit'
     if (mode === 'show') {
@@ -241,8 +253,10 @@ export function CameraRig() {
       // frame the whole avatar above the product rail: 3.5 m tall, 1.7 m wide window, centre at 0.42 m
       const tan = Math.tan(((camera as PerspectiveCamera).fov * Math.PI) / 360)
       const phone = aspect < 0.8 // phones: overlays top and bottom, so a taller window
-      const dist = Math.max((phone ? 2.4 : 1.75) / tan, 0.85 / (tan * aspect))
-      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + (phone ? 0.45 : 0.42), ANCHORS.avatar_fit.z)
+      const bare = PARAMS.mode === 'locked' // no UI: frame the avatar alone
+      const half = bare ? 1.2 : phone ? 2.4 : 1.75
+      const dist = Math.max(half / tan, (bare ? 0.75 : 0.85) / (tan * aspect))
+      st.aim.set(ANCHORS.avatar_fit.x, ANCHORS.avatar_fit.y + (bare ? 0.88 : phone ? 0.45 : 0.42), ANCHORS.avatar_fit.z)
       st.pos.sub(ANCHORS.cam_fit_target).normalize().multiplyScalar(dist).add(st.aim)
     } else {
       if (shot === 'cam_wide' && aspect >= 1.1 && aspect < 1.7) {

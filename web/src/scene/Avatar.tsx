@@ -6,6 +6,7 @@ import meshes from '../contract/meshes.json'
 import { SLOTS } from '../config'
 import type { Product } from '../api/types'
 import { productBySku, useStore } from '../store'
+import { PARAMS } from '../lib/params'
 import { ANCHORS, clamp01, easeInOutCubic, live, turntable } from './anchors'
 import { DRACO_PATH, useAssetExists } from './assets'
 import { garmentMaterial, printTexture } from './materials'
@@ -194,6 +195,13 @@ export function Avatar() {
     const { mode, showStart } = useStore.getState()
     const s = st.current
     const now = clock.elapsedTime
+    if (PARAMS.mode === 'persona') {
+      // portfolio: standing on the centre mark, gentle sway
+      g.position.copy(ANCHORS.mark_center)
+      g.rotation.y = turntable.yaw = Math.sin(now * 0.35) * 0.22
+      live.avatar.copy(g.position)
+      return
+    }
     if (mode !== s.mode) {
       s.mode = mode; s.t0 = now; s.from.copy(g.position); s.fromYaw = turntable.yaw
       const twoPi = Math.PI * 2
@@ -235,4 +243,12 @@ export function Avatar() {
       {hasWardrobe ? <Boundary fallback={primWardrobe}><Suspense fallback={primWardrobe}><GlbWardrobe items={items} /></Suspense></Boundary> : primWardrobe}
     </group>
   )
+}
+
+/** One catalog piece (wardrobe.glb node or primitive), for the product drawer. */
+export function GarmentPiece({ p }: { p: Product }) {
+  const hasWardrobe = useAssetExists(WARDROBE_URL)
+  const prim = <PrimitiveGarment mesh={p.mesh} m={garmentMaterial(p)} />
+  if (!hasWardrobe) return prim
+  return <Boundary fallback={prim}><Suspense fallback={prim}><GlbWardrobe items={[p]} /></Suspense></Boundary>
 }

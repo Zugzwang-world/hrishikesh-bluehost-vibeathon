@@ -19,7 +19,7 @@ export function lookProducts(look: Look, catalog: Catalog | null): Product[] {
 
 export function bagUrl(skus: string[], title: string): string | null {
   if (!PARAMS.host) return null
-  return `${PARAMS.host}/cart?add=${skus.join(',')}&look=${encodeURIComponent(title)}`
+  return `${PARAMS.host}${PARAMS.cartPath}?add=${skus.join(',')}&look=${encodeURIComponent(title)}`
 }
 
 export function postAddLook(skus: string[], title: string) {
@@ -27,3 +27,18 @@ export function postAddLook(skus: string[], title: string) {
 }
 
 export const inr = (n: number) => '₹' + n.toLocaleString('en-IN')
+
+/** Thrift fields (SHOP-UNI-FY catalog); optional so older catalogs still render. */
+export type Thrift = { oneOfOne?: boolean; condition?: string; size?: string; era?: string }
+export const thrift = (p: Product) => p as Product & Thrift
+export function thriftTags(p: Product, withPrice = true): string[] {
+  const t = thrift(p)
+  const out: string[] = []
+  if (t.oneOfOne) out.push('1 OF 1')
+  if (t.condition) out.push(t.condition)
+  if (t.size) out.push(t.size)
+  if (t.era) out.push(t.era)
+  if (withPrice) out.push(inr(p.price))
+  return out
+}
+export const instagram = (m: { slug: string }) => (m as { instagram?: string }).instagram ?? null

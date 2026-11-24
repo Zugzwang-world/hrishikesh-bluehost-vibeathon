@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { computeStageMetrics, stageCheck } from '../lib/stylist'
 import { inr } from '../lib/bag'
 import { productBySku, useStore } from '../store'
+import { STAGE_READY } from '../config'
 import { LED_WALL_COLOR } from '../scene/anchors'
 import { SHOW_DURATION } from '../scene/Stage'
 import { snapshot } from '../scene/Scene'
@@ -37,6 +38,7 @@ export function Controls({ webgl }: { webgl: boolean }) {
       {mode === 'fit' ? (
         <>
           <button className="btn btn--ghost" onClick={surprise}>Surprise me</button>
+          <button className="btn btn--ghost" onClick={() => useStore.getState().preset(STAGE_READY.title, STAGE_READY.skus)}>{STAGE_READY.title}</button>
           {webgl && <button className="btn btn--ghost" onClick={() => snapshot('hrishikesh-look.png')}>Snapshot</button>}
           <button className="btn btn--primary btn--stage" onClick={goOnStage}>Go on stage</button>
         </>
