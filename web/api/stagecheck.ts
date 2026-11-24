@@ -212,7 +212,7 @@ Guide:
 - printReadability is the contrast of any print against its garment (3 or more reads from the back rows); null means no print.
 - score: 0 to 100 (85+ stage-ready, 60 to 84 good with a tweak, under 60 risky).
 - verdict: one short sentence. note1..note3: three different one-line observations (under 22 words each), concrete and warm, like a stylist backstage.
-- swap: the single catalog item, in the same slot as the piece it replaces, that most improves the stage read (usually contrast against the LED wall, e.g. a lighter top or layer against a dark wall). Use the c= value (its contrast vs this LED wall). Mention the store in why. Use null if the look is already strong.
+- swap: pick one of the computed swap candidates (each raises contrast against the LED wall; a lighter top or layer against a dark wall), or null if there are none or the look already scores 85 or more. why: one sentence under 25 words that names the store.
 Speak to Hrishikesh directly as "you". No emojis.`
 
 function stageSchema(products: P[]): Record<string, unknown> {
@@ -280,11 +280,25 @@ export default async function handler(req: Req, res: ServerResponse) {
     const p = look[s] ? bySku.get(look[s] as string) : undefined
     return `${s}: ${p ? `${p.sku} ${p.name}, ${p.colorName} ${p.color}${p.pattern !== 'solid' ? ` (${p.pattern})` : ''}${p.printText ? ` print "${p.printText}"` : ''}, ${p.merchant}` : 'empty'}`
   }).join('\n')
-  const options = products
-    .filter((p) => look[p.slot] !== p.sku && (p.slot === 'top' || p.slot === 'outerwear' || p.slot === 'bottom' || look[p.slot]))
-    .map((p) => `${p.sku}|${p.slot}|${p.name}|${p.colorName}|${p.merchant}|c=${contrast(p.color, led)}`)
-    .join('\n')
-  const user = `Metrics: ${JSON.stringify(metrics)}\n\nOutfit:\n${outfit}\n\nSwap options (sku|slot|name|colour|store|contrast vs LED wall):\n${options}`
+  // Swap candidates computed in code: same slot as the front garment (or the top under a jacket), clearly higher contrast.
+  const candidates: { p: P; from: number; to: number }[] = []
+  for (const slot of (look.outerwear ? ['outerwear', 'top'] : ['top']) as Slot[]) {
+    const cur = look[slot] ? bySku.get(look[slot] as string) : undefined
+    if (!cur) continue
+    const from = contrast(cur.color, led)
+    if (from >= 7) continue
+    products
+      .filter((p) => p.slot === slot && p.sku !== cur.sku)
+      .map((p) => ({ p, from, to: contrast(p.color, led) }))
+      .filter((c) => c.to - c.from >= 0.75)
+      .sort((a, b) => b.to - a.to)
+      .slice(0, 3)
+      .forEach((c) => candidates.push(c))
+  }
+  const options = candidates.length
+    ? candidates.map((c) => `${c.p.sku}|${c.p.slot}|${c.p.name}|${c.p.colorName}|${c.p.merchant}|contrast ${c.from} -> ${c.to}`).join('\n')
+    : 'none (swap must be null)'
+  const user = `Metrics: ${JSON.stringify(metrics)}\n\nOutfit:\n${outfit}\n\nSwap candidates (sku|slot|name|colour|store|contrast vs LED wall now -> after):\n${options}`
 
   let out: { data: unknown; model: string }
   try {
@@ -298,9 +312,13 @@ export default async function handler(req: Req, res: ServerResponse) {
   const notes = [d.note1, d.note2, d.note3].map((n) => (typeof n === 'string' ? n.trim().slice(0, 240) : ''))
   if (score === null || typeof d.verdict !== 'string' || notes.some((n) => !n)) return send(res, 502, { error: 'invalid model output' })
   let swap: { slot: Slot; sku: string; why: string } | null = null
-  if (isObj(d.swap) && typeof d.swap.sku === 'string') {
-    const p = bySku.get(d.swap.sku)
-    if (p && p.slot === d.swap.slot && look[p.slot] !== p.sku) swap = { slot: p.slot, sku: p.sku, why: typeof d.swap.why === 'string' ? d.swap.why.trim().slice(0, 240) : '' }
+  const pick = isObj(d.swap) && typeof d.swap.sku === 'string' ? candidates.find((c) => c.p.sku === (d.swap as Record<string, unknown>).sku) : undefined
+  if (pick) {
+    const why = isObj(d.swap) && typeof d.swap.why === 'string' ? d.swap.why.trim().slice(0, 240) : ''
+    swap = { slot: pick.p.slot, sku: pick.p.sku, why: why || `${pick.p.name} from ${pick.p.merchant} lifts contrast against the LED wall from ${pick.from}:1 to ${pick.to}:1.` }
+  } else if (isObj(d.swap) && candidates.length && score < 85) {
+    const c = candidates[0]
+    swap = { slot: c.p.slot, sku: c.p.sku, why: `${c.p.name} in ${c.p.colorName} from ${c.p.merchant} lifts contrast against the LED wall from ${c.from}:1 to ${c.to}:1.` }
   }
   return send(res, 200, {
     score: Math.round(Math.max(0, Math.min(100, score))),
