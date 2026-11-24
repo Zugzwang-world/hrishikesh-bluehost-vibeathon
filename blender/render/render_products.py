@@ -418,7 +418,7 @@ def frame(objs, p):
     elev = math.radians(20 if low else 9)
     d = Vector((math.sin(-yaw) * math.cos(elev), -math.cos(yaw) * math.cos(elev), math.sin(elev)))
     dist = 2.0
-    margin = 0.86  # garment fills this fraction of the frame
+    margin = 0.90  # garment fills this fraction of the frame
     lo_d, hi_d = 0.05, 20.0
     for _ in range(26):
         dist = (lo_d + hi_d) / 2
@@ -459,9 +459,14 @@ def frame(objs, p):
         lo[0].location = loc
         point_at(lo[0], centre)
         lo[0].data.size = lo[0].data.size_y = max(0.4, size * 2.2)
-    for lo, base_w in ((key, KEY_W), (fill, FILL_W), (rim, RIM_W)):
+    # dark garments get more light, and a stronger rim, so they separate from a dark backdrop
+    c = hexlin(p["material"]["color"])
+    glum = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    dark = max(0.0, min(1.0, 1.0 - glum / 0.18))
+    boost = 1.0 + 0.9 * dark
+    for lo, base_w, extra in ((key, KEY_W, 1.0), (fill, FILL_W, 1.0), (rim, RIM_W, 1.0 + 0.8 * dark)):
         dd = (lo[0].location - centre).length
-        lo[0].data.energy = base_w * (dd / 2.5) ** 2
+        lo[0].data.energy = base_w * (dd / 2.5) ** 2 * boost * extra
     return centre, size
 
 
