@@ -72,3 +72,5 @@ sc.render.resolution_y = 800
 shoot("head_threeq", 35, (0, 1.6, 0), 1.1)
 shoot("head_front", 0, (0, 1.6, 0), 1.1)
 shoot("head_side", 90, (0, 1.6, 0), 1.1)
+shoot("hand_front", 0, (0.50, 0.86, 0.0), 0.7)
+shoot("hand_side", 90, (0.50, 0.86, 0.0), 0.7)

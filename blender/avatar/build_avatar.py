@@ -226,11 +226,11 @@ def build_body_mb():
         mb.sphere(W, 0.029, 24, 12)
         # mitten hand: palm faces the thigh
         z = Vector((0, 0, 1))
-        hc = J + d * 0.645
-        mb.ellipsoid(hc, d * 0.097, n * 0.023, z * 0.047, nu=28, nv=16)
-        tdir = (d * 0.85 + z * 0.5).normalized()
-        tc = J + d * 0.60 + z * 0.040 + n * 0.006
-        mb.ellipsoid(tc, tdir * 0.040, n * 0.015, n.cross(tdir).normalized() * 0.016, nu=20, nv=12)
+        mb.ellipsoid(J + d * 0.622, d * 0.076, n * 0.024, z * 0.046, nu=28, nv=16)          # palm
+        mb.ellipsoid(J + d * 0.680 + n * 0.006, d * 0.060, n * 0.020, z * 0.044, nu=28, nv=16)  # fingers, curled in
+        tdir = (d * 0.80 + z * 0.45 + n * 0.30).normalized()
+        tc = J + d * 0.607 + z * 0.041 + n * 0.011
+        mb.ellipsoid(tc, tdir * 0.038, n * 0.014, n.cross(tdir).normalized() * 0.015, nu=20, nv=12)  # thumb
 
         # legs
         hip = Vector((0.096 * s, 0.90, -0.006))

@@ -76,6 +76,8 @@ sc.render.resolution_percentage = 100
 sc.render.film_transparent = True
 sc.render.image_settings.file_format = "PNG"
 sc.render.image_settings.color_mode = "RGBA"
+sc.render.image_settings.color_depth = "8"
+sc.render.image_settings.compression = 100
 try:
     sc.view_settings.view_transform = "Standard"
     sc.view_settings.look = "None"
