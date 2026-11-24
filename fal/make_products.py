@@ -91,7 +91,7 @@ def product_prompt(p):
             f"no mannequin, {STAGING[p['slot']]}. Seamless paper backdrop in the brand colour {mer['brandColor']} with a "
             f"soft gradient, soft directional studio key light with a gentle rim light so the item separates from the "
             f"backdrop, a soft natural shadow. A small blank kraft-paper thrift tag tied on with twine. Premium Instagram "
-            f"thrift-store editorial styling, sharp focus, centred, generous margins. No text, no logos, no watermark.")
+            f"thrift-store editorial styling, sharp focus, centred, generous margins. Plain, unbranded design: no brand stripes, swooshes, side logos, wordmarks or recognisable trademark details anywhere. No text, no logos, no watermark.")
 
 
 def save_product(raw: Path, sku: str):
